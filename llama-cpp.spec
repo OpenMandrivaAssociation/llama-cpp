@@ -225,6 +225,7 @@ rm %{buildroot}%{_bindir}/convert*.py
 %{_includedir}/ggml.h
 %{_includedir}/ggml-*.h
 %{_includedir}/llama.h
+%{_includedir}/llama-cpp.h
 %{_libdir}/libllama.so
 %{_libdir}/libggml.so
 %{_libdir}/libggml-base.so
