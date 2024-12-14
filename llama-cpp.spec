@@ -3,7 +3,7 @@
 %global pypi_version 0.10.0
 
 # Some optional subpackages
-%bcond_with examples
+%bcond_without examples
 %if %{with examples}
 %global build_examples ON
 %else
