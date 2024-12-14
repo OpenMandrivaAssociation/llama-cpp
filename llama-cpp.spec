@@ -28,9 +28,9 @@ URL:            https://github.com/ggerganov/llama.cpp
 Source0:        %{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
 
 %ifarch x86_64
-%bcond_without rocm
+%bcond_with rocm
 %else
-%bcond_without rocm
+%bcond_with rocm
 %endif
 
 %if %{with rocm}
