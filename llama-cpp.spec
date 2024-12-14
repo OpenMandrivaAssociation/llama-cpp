@@ -21,34 +21,16 @@
 
 Summary:        Port of Facebook's LLaMA model in C/C++
 Name:           llama-cpp
-
-# Licensecheck reports
-#
-# *No copyright* The Unlicense
-# ----------------------------
-# common/base64.hpp
-# common/stb_image.h
-# These are public domain
-#
-# MIT License
-# -----------
-# LICENSE
-# ...
-# This is the main license
-
 License:        MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:        b4094
-Release:        %autorelease
-
+Version:        b4327
+Release:        1
 URL:            https://github.com/ggerganov/llama.cpp
-Source0:        %{url}/archive/%{version}.tar.gz#/llama.cpp-%{version}.tar.gz
-
-ExclusiveArch:  x86_64 aarch64
+Source0:        %{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
 
 %ifarch x86_64
 %bcond_without rocm
 %else
-%bcond_with rocm
+%bcond_without rocm
 %endif
 
 %if %{with rocm}
@@ -65,14 +47,14 @@ BuildRequires:  xxd
 BuildRequires:  cmake
 BuildRequires:  curl
 BuildRequires:  wget
-BuildRequires:  langpacks-en
+#BuildRequires:  langpacks-en
 # above are packages in .github/workflows/server.yml
-BuildRequires:  libcurl-devel
-BuildRequires:  gcc-c++
+BuildRequires:  pkgconfig(libcurl)
+#BuildRequires:  gcc-c++
 BuildRequires:  openmpi
-BuildRequires:  pthreadpool-devel
+#BuildRequires:  pthreadpool-devel
 %if %{with examples}
-BuildRequires:  python3-devel
+BuildRequires:  python-devel
 BuildRequires:  python3dist(pip)
 BuildRequires:  python3dist(poetry)
 %endif
@@ -171,7 +153,7 @@ find . -name '.gitignore' -exec rm -rf {} \;
 %build
 %if %{with examples}
 cd %{_vpath_srcdir}/gguf-py
-%pyproject_wheel
+%py_build
 cd -
 %endif
 
@@ -196,7 +178,7 @@ module load rocm/default
     -DLLAMA_BUILD_EXAMPLES=%{build_examples} \
     -DLLAMA_BUILD_TESTS=%{build_test}
     
-%cmake_build
+%make_build
 
 %if %{with rocm}
 module purge
@@ -206,11 +188,11 @@ module purge
 %install
 %if %{with examples}
 cd %{_vpath_srcdir}/gguf-py
-%pyproject_install
+%py_install
 cd -
 %endif
 
-%cmake_install
+%make_install -C build
 
 rm -rf %{buildroot}%{_libdir}/libggml_shared.*
 
@@ -267,5 +249,3 @@ rm %{buildroot}%{_bindir}/convert*.py
 %{python3_sitelib}/scripts
 %endif
 
-%changelog
-%autochangelog
