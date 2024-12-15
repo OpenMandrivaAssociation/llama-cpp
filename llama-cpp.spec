@@ -58,7 +58,12 @@ BuildRequires:  python-devel
 BuildRequires:  python3dist(pip)
 BuildRequires:  python3dist(poetry)
 %endif
-
+# for blas backend
+BuildRequires:  pkgconfig(openblas)
+# for vulkan backend
+BuildRequires:  pkgconfig(vulkan)
+BuildRequires:  glslang-devel
+BuildRequires:  pkgconfig(shaderc)
 %if %{with rocm}
 BuildRequires:  hipblas-devel
 BuildRequires:  rocm-comgr-devel
@@ -171,6 +176,9 @@ module load rocm/default
     -DLLAMA_AVX512_VNNI=OFF \
     -DLLAMA_FMA=OFF \
     -DLLAMA_F16C=OFF \
+    -DGGML_BLAS=ON 
+    -DGGML_BLAS_VENDOR=OpenBLAS
+    -DGGML_VULKAN=1
 %if %{with rocm}
     -DLLAMA_HIPBLAS=%{build_hip} \
     -DAMDGPU_TARGETS=${ROCM_GPUS} \
