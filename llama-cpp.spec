@@ -132,7 +132,7 @@ Summary:        Examples for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       python3dist(numpy)
 #Requires:       python3dist(torch)
-#Requires:       python3dist(sentencepiece)
+Requires:       python3dist(sentencepiece)
 
 %description examples
 %{summary}
