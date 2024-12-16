@@ -64,6 +64,7 @@ BuildRequires:  pkgconfig(openblas)
 BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  glslang-devel
 BuildRequires:  pkgconfig(shaderc)
+BuildRequires:  glslc
 %if %{with rocm}
 BuildRequires:  hipblas-devel
 BuildRequires:  rocm-comgr-devel
