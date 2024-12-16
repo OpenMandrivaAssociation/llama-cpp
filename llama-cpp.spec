@@ -63,6 +63,7 @@ BuildRequires:  pkgconfig(openblas)
 # for vulkan backend
 BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  glslang-devel
+BuildRequires:  glslang
 BuildRequires:  pkgconfig(shaderc)
 BuildRequires:  glslc
 %if %{with rocm}
@@ -177,7 +178,7 @@ module load rocm/default
     -DLLAMA_AVX512_VNNI=OFF \
     -DLLAMA_FMA=OFF \
     -DLLAMA_F16C=OFF \
-    -DGGML_VULKAN=1
+    -DGGML_VULKAN=1 \
 %if %{with rocm}
     -DLLAMA_HIPBLAS=%{build_hip} \
     -DAMDGPU_TARGETS=${ROCM_GPUS} \
