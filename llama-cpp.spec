@@ -158,6 +158,8 @@ rm -rf exmples/llma.android
 find . -name '.gitignore' -exec rm -rf {} \;
 
 %build
+export CC=gcc
+export CXX=g++
 %if %{with examples}
 cd %{_vpath_srcdir}/gguf-py
 %py_build
