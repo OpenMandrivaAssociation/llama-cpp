@@ -1,6 +1,7 @@
 # For the extra python package gguf that comes with llama-cpp
 %global pypi_name gguf
 %global pypi_version 0.10.0
+%define soversion %(echo %{version}|sed -e 's,^[a-z],,')
 
 # Some optional subpackages
 %bcond_without examples
@@ -19,21 +20,22 @@
 
 %bcond_with check
 
-Summary:        Port of Facebook's LLaMA model in C/C++
-Name:           llama-cpp
-License:        MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:        b4327
-Release:        1
-URL:            https://github.com/ggerganov/llama.cpp
-Source0:        %{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
+Summary:		Port of Facebook's LLaMA model in C/C++
+Name:			llama-cpp
+License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
+Version:		b4354
+Release:		1
+URL:			https://github.com/ggerganov/llama.cpp
+Source0:		%{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
 
-%ifarch x86_64
+%ifarch %{x86_64}
 %bcond_with rocm
 %else
 %bcond_with rocm
 %endif
 
 %if %{with rocm}
+# Doesn't work yet
 %global build_hip ON
 %global toolchain rocm
 # hipcc does not support some clang flags
@@ -67,6 +69,7 @@ BuildRequires:  glslang
 BuildRequires:  pkgconfig(shaderc)
 BuildRequires:  glslc
 %if %{with rocm}
+BuildRequires:	cmake(hip-lang)
 BuildRequires:  hipblas-devel
 BuildRequires:  rocm-comgr-devel
 BuildRequires:  rocm-hip-devel
@@ -77,12 +80,12 @@ BuildRequires:  rocm-runtime-devel
 BuildRequires:  rocm-rpm-macros
 BuildRequires:  rocm-rpm-macros-modules
 
-Requires:       rocblas
-Requires:       hipblas
+Requires:	   rocblas
+Requires:	   hipblas
 %endif
 
-Requires:       curl
-Recommends:     numactl
+Requires:	   curl
+Recommends:	 numactl
 
 %description
 The main goal of llama.cpp is to run the LLaMA model using 4-bit
@@ -103,8 +106,8 @@ serves as the main playground for developing new features for the
 ggml library.
 
 %package devel
-Summary:        Port of Facebook's LLaMA model in C/C++
-Requires:       %{name}%{?_isa} = %{version}-%{release}
+Summary:		Port of Facebook's LLaMA model in C/C++
+Requires:	   %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
 The main goal of llama.cpp is to run the LLaMA model using 4-bit
@@ -126,8 +129,8 @@ ggml library.
 
 %if %{with test}
 %package test
-Summary:        Tests for %{name}
-Requires:       %{name}%{?_isa} = %{version}-%{release}
+Summary:		Tests for %{name}
+Requires:	   %{name}%{?_isa} = %{version}-%{release}
 
 %description test
 %{summary}
@@ -135,11 +138,11 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %if %{with examples}
 %package examples
-Summary:        Examples for %{name}
-Requires:       %{name}%{?_isa} = %{version}-%{release}
-Requires:       python3dist(numpy)
-#Requires:       python3dist(torch)
-Requires:       python3dist(sentencepiece)
+Summary:		Examples for %{name}
+Requires:	   %{name}%{?_isa} = %{version}-%{release}
+Requires:	   python3dist(numpy)
+#Requires:	   python3dist(torch)
+Requires:	   python3dist(sentencepiece)
 
 %description examples
 %{summary}
@@ -149,8 +152,11 @@ Requires:       python3dist(sentencepiece)
 %autosetup -p1 -n llama.cpp-%{version}
 
 # verson the *.so
-sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{version}/' src/CMakeLists.txt
-sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{version}/' ggml/src/CMakeLists.txt
+sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{soversion}/' src/CMakeLists.txt
+sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{soversion}/' ggml/src/CMakeLists.txt
+
+# Set a sane search path for the ggml backends
+sed -i -e '/search_paths.push_back("\.\/")/a        search_paths.push_back("%{_libdir}/ggml-backends-%{soversion}")\;' ggml/src/ggml-backend-reg.cpp
 
 # no android needed
 rm -rf exmples/llma.android
@@ -168,24 +174,53 @@ cd -
 module load rocm/default
 %endif
 
+export HIP_DEVICE_LIB_PATH=%{_libdir}/amdgcn/bitcode
+# FIXME where is hipconfig.bin supposed to come from?
+export HIP_USE_PERL_SCRIPTS=1
+
+# FIXME add
+#	-DGGML_HIP:BOOL=ON
+# when we have the missing bits (hipblas and friends)
 %cmake \
-    -DCMAKE_INSTALL_LIBDIR=%{_lib} \
-    -DCMAKE_SKIP_RPATH=ON \
-    -DLLAMA_AVX=OFF \
-    -DLLAMA_AVX2=OFF \
-    -DLLAMA_AVX512=OFF \
-    -DLLAMA_AVX512_VBMI=OFF \
-    -DLLAMA_AVX512_VNNI=OFF \
-    -DLLAMA_FMA=OFF \
-    -DLLAMA_F16C=OFF \
-    -DGGML_VULKAN=1 \
-%if %{with rocm}
-    -DLLAMA_HIPBLAS=%{build_hip} \
-    -DAMDGPU_TARGETS=${ROCM_GPUS} \
+	-DCMAKE_INSTALL_LIBDIR=%{_lib} \
+	-DCMAKE_SKIP_RPATH=ON \
+	-DLLAMA_CURL:BOOL=ON \
+	-DLLAMA_SERVER_SSL:BOOL=ON \
+%ifarch znver1
+	-DLLAMA_AVX:BOOL=ON \
+	-DLLAMA_AVX2:BOOL=ON \
+%else
+	-DLLAMA_AVX:BOOL=OFF \
+	-DLLAMA_AVX2:BOOL=OFF \
 %endif
-    -DLLAMA_BUILD_EXAMPLES=%{build_examples} \
-    -DLLAMA_BUILD_TESTS=%{build_test}
-    
+	-DLLAMA_AVX512=OFF \
+	-DLLAMA_AVX512_VBMI=OFF \
+	-DLLAMA_AVX512_VNNI=OFF \
+	-DLLAMA_FMA=OFF \
+	-DLLAMA_F16C=OFF \
+	-DGGML_NATIVE:BOOL=OFF \
+	-DGGML_VULKAN:BOOL=ON \
+	-DGGML_CPU:BOOL=ON \
+	-DGGML_CPU_ALL_VARIANTS:BOOL=ON \
+	-DGGML_OPENCL:BOOL=ON \
+	-DGGML_BLAS:BOOL=ON \
+	-DGGML_BLAS_VENDOR=OpenBLAS \
+	-DGGML_BACKEND_DL:BOOL=ON \
+	-DCMAKE_HIP_COMPILER_ROCM_ROOT=%{_prefix} \
+	-DGGML_LTO:BOOL=ON \
+%ifarch %{aarch64}
+	-DGGML_CPU_AARCH64:BOOL=ON \
+%else
+	-DGGML_CPU_AARCH64:BOOL=OFF \
+	-DGGML_OPENCL_USE_ADRENO_KERNELS:BOOL=OFF \
+%endif
+%if %{with rocm}
+	-DLLAMA_HIPBLAS=%{build_hip} \
+	-DAMDGPU_TARGETS=${ROCM_GPUS} \
+%endif
+	-DLLAMA_BUILD_EXAMPLES=%{build_examples} \
+	-DLLAMA_BUILD_TESTS=%{build_test}
+	
 %make_build
 
 %if %{with rocm}
@@ -214,6 +249,9 @@ rm -rf %{buildroot}%{_datarootdir}/%{name}/examples/llama.android
 rm %{buildroot}%{_bindir}/convert*.py
 %endif
 
+mkdir -p %{buildroot}%{_libdir}/ggml-backends-%{soversion}
+cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
+
 %if %{with test}
 %if %{with check}
 %check
@@ -223,11 +261,12 @@ rm %{buildroot}%{_bindir}/convert*.py
 
 %files
 %license LICENSE
-%{_libdir}/libllama.so.%{version}
-%{_libdir}/libggml.so.%{version}
-%{_libdir}/libggml-base.so.%{version}
-%{_libdir}/libggml-vulkan.so
+%{_libdir}/libllama.so.%{soversion}
+%{_libdir}/libggml.so.%{soversion}
+%{_libdir}/libggml-base.so.%{soversion}
 %{_bindir}/vulkan-shaders-gen
+%dir %{_libdir}/ggml-backends-%{soversion}
+%{_libdir}/ggml-backends-%{soversion}/*
 
 %files devel
 %dir %{_libdir}/cmake/llama
@@ -239,7 +278,6 @@ rm %{buildroot}%{_bindir}/convert*.py
 %{_libdir}/libllama.so
 %{_libdir}/libggml.so
 %{_libdir}/libggml-base.so
-%{_libdir}/libggml-cpu.so
 %{_libdir}/cmake/llama/*.cmake
 %{_exec_prefix}/lib/pkgconfig/llama.pc
 
@@ -254,9 +292,7 @@ rm %{buildroot}%{_bindir}/convert*.py
 %{_bindir}/gguf-*
 %{_bindir}/llama-*
 %{_datarootdir}/%{name}/
-%{_libdir}/libllava_shared.so
 %{python3_sitelib}/%{pypi_name}
 %{python3_sitelib}/%{pypi_name}*.dist-info
 %{python3_sitelib}/scripts
 %endif
-
