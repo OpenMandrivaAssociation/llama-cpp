@@ -69,6 +69,7 @@ BuildRequires:  glslang
 BuildRequires:  pkgconfig(shaderc)
 BuildRequires:  glslc
 BuildRequires:	pkgconfig(OpenCL-Headers)
+BuildRequires:	pkgconfig(OpenCL)
 %if %{with rocm}
 BuildRequires:	cmake(hip-lang)
 BuildRequires:  hipblas-devel
