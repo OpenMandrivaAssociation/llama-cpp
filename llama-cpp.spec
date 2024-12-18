@@ -226,6 +226,8 @@ rm %{buildroot}%{_bindir}/convert*.py
 %{_libdir}/libllama.so.%{version}
 %{_libdir}/libggml.so.%{version}
 %{_libdir}/libggml-base.so.%{version}
+%{_libdir}/libggml-vulkan.so
+%{_bindir}/vulkan-shaders-gen
 
 %files devel
 %dir %{_libdir}/cmake/llama
