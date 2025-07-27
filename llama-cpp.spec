@@ -23,7 +23,7 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:		b4409
+Version:		b6002
 Release:		1
 URL:			https://github.com/ggerganov/llama.cpp
 Source0:		%{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
