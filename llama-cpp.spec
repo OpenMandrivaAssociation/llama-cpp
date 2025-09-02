@@ -268,7 +268,7 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %{_libdir}/libllama.so.%{soversion}
 %{_libdir}/libggml.so.%{soversion}
 %{_libdir}/libggml-base.so.%{soversion}
-%{_bindir}/vulkan-shaders-gen
+#{_bindir}/vulkan-shaders-gen
 %dir %{_libdir}/ggml-backends-%{soversion}
 %{_libdir}/ggml-backends-%{soversion}/*
 
