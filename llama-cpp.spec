@@ -183,6 +183,8 @@ export HIP_USE_PERL_SCRIPTS=1
 # FIXME add
 #	-DGGML_HIP:BOOL=ON
 # when we have the missing bits (hipblas and friends)
+export CC=gcc
+export CXX=g++
 %cmake \
 	-DCMAKE_INSTALL_LIBDIR=%{_lib} \
 	-DCMAKE_SKIP_RPATH=ON \
