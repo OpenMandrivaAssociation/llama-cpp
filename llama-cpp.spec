@@ -298,5 +298,5 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %{_datarootdir}/%{name}/
 %{python3_sitelib}/%{pypi_name}
 %{python3_sitelib}/%{pypi_name}*.dist-info
-%{python3_sitelib}/scripts
+#{python3_sitelib}/scripts
 %endif
