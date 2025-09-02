@@ -283,7 +283,7 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %{_libdir}/libggml.so
 %{_libdir}/libggml-base.so
 %{_libdir}/cmake/llama/*.cmake
-%{_exec_prefix}/lib/pkgconfig/llama.pc
+%{_libdir}/pkgconfig/llama.pc
 
 %if %{with test}
 %files test
