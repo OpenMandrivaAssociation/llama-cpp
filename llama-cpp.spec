@@ -2,6 +2,7 @@
 %global pypi_name gguf
 %global pypi_version 0.10.0
 %define soversion %(echo %{version}|sed -e 's,^[a-z],,')
+%global backend_dir %{_libdir}/ggml
 
 # Some optional subpackages
 %bcond_without examples
@@ -212,6 +213,7 @@ export CXX=g++
 	-DGGML_BACKEND_DL:BOOL=ON \
 	-DCMAKE_HIP_COMPILER_ROCM_ROOT=%{_prefix} \
 	-DGGML_LTO:BOOL=ON \
+	-DGGML_BACKEND_DIR="%{backend_dir}" \
 %ifarch %{aarch64}
 	-DGGML_CPU_AARCH64:BOOL=ON \
 %else
