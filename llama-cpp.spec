@@ -273,6 +273,7 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 #{_bindir}/vulkan-shaders-gen
 %dir %{_libdir}/ggml-backends-%{soversion}
 %{_libdir}/ggml-backends-%{soversion}/*
+%{_libdir}/ggml/libggml-*
 
 %files devel
 %dir %{_libdir}/cmake/llama
@@ -281,10 +282,16 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %{_includedir}/ggml-*.h
 %{_includedir}/llama.h
 %{_includedir}/llama-cpp.h
+%{_includedir}/gguf.h
+%{_includedir}/mtmd-helper.h
+%{_includedir}/mtmd.h
 %{_libdir}/libllama.so
 %{_libdir}/libggml.so
 %{_libdir}/libggml-base.so
+%{_libdir}/libmtmd.so
 %{_libdir}/cmake/llama/*.cmake
+%{_libdir}/cmake/ggml/ggml-config.cmake
+%{_libdir}/cmake/ggml/ggml-version.cmake
 %{_libdir}/pkgconfig/llama.pc
 
 %if %{with test}
