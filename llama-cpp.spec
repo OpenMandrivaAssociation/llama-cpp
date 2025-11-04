@@ -1,4 +1,4 @@
-%global __requires_exclude ^cmake\\((hipblas|rocblas|[Ii]ntelSYCL)\\)$
+%global __requires_exclude ^cmake\\((hipblas|rocblas|[Ii]ntelSYCL)\\)|or\\scmake\\([Ii]ntelSYCL\\)$
 
 # For the extra python package gguf that comes with llama-cpp
 %global pypi_name gguf
