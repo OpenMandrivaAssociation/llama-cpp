@@ -1,3 +1,5 @@
+%global __requires_exclude ^cmake\\((hipblas|rocblas|[Ii]ntelSYCL)\\)$
+
 # For the extra python package gguf that comes with llama-cpp
 %global pypi_name gguf
 %global pypi_version 0.10.0
