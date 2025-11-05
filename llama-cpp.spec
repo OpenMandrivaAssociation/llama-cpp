@@ -24,10 +24,10 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:		b6940
+Version:		b6948
 Release:		1
-URL:			https://github.com/ggerganov/llama.cpp
-Source0:		%{url}/archive/%{version}/llama.cpp-%{version}.tar.gz
+URL:			https://github.com/ggml-org/llama.cpp
+Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
 
 %ifarch %{x86_64}
 %bcond_with rocm
@@ -89,6 +89,8 @@ Requires:	   hipblas
 
 Requires:	   curl
 Recommends:	 numactl
+
+%global __requires_exclude cmake\\((hip|roc|mkl|intelsycl).*
 
 %description
 The main goal of llama.cpp is to run the LLaMA model using 4-bit
@@ -184,8 +186,8 @@ export HIP_USE_PERL_SCRIPTS=1
 # FIXME add
 #	-DGGML_HIP:BOOL=ON
 # when we have the missing bits (hipblas and friends)
-export CC=gcc
-export CXX=g++
+export CC=clang
+export CXX=clang++
 %cmake \
 	-DCMAKE_INSTALL_LIBDIR=%{_lib} \
 	-DCMAKE_SKIP_RPATH=ON \
