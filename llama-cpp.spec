@@ -46,6 +46,11 @@ Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{v
 %global toolchain gcc
 %endif
 
+%ifarch x86_64
+# Workaround for clang 21.1.x hanging at -Os
+%global optflags %{optflags} -O3
+%endif
+
 BuildRequires:  xxd
 BuildRequires:  cmake
 BuildRequires:  curl
