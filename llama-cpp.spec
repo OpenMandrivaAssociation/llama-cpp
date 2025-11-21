@@ -24,7 +24,7 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:		b6954
+Version:		b7120
 Release:		1
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
@@ -147,6 +147,16 @@ Requires:	   %{name}%{?_isa} = %{version}-%{release}
 %endif
 
 %if %{with examples}
+%package server
+Summary:	OpenAI API compatible server for %{name}
+Group:		Servers
+
+%description server
+OpenAI API compatible server for %{name}
+
+To test your AI server, do something like:
+curl http://localhost:8080/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer OpenMandriva" -d '{"model": "any", "messages": [ { "role": "user", "content": "Do you see anything wrong with this code?\n```c++\nfloat main(int argc, char **argv) { puts("Use OpenMandriva!"); }\n```" } ] }'
+
 %package examples
 Summary:		Examples for %{name}
 Requires:	   %{name}%{?_isa} = %{version}-%{release}
@@ -160,6 +170,8 @@ Requires:	   python3dist(sentencepiece)
 
 %prep
 %autosetup -p1 -n llama.cpp-%{version}
+# Look for stuff where it may actually be, not relative to the build root
+sed -i -e 's,models/,%{_datadir}/models/,g' common/common.h
 
 # verson the *.so
 sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{soversion}/' src/CMakeLists.txt
@@ -232,6 +244,7 @@ export CXX=clang++
 	-DAMDGPU_TARGETS=${ROCM_GPUS} \
 %endif
 	-DLLAMA_BUILD_EXAMPLES=%{build_examples} \
+	-DLLAMA_BUILD_SERVER:BOOL=ON \
 	-DLLAMA_BUILD_TESTS=%{build_test}
 	
 %make_build
@@ -253,6 +266,35 @@ cd -
 rm -rf %{buildroot}%{_libdir}/libggml_shared.*
 
 %if %{with examples}
+mkdir -p %{buildroot}%{_unitdir} %{buildroot}%{_sysconfdir}/sysconfig
+cat >%{buildroot}%{_unitdir}/llama.service <<'EOF'
+[Unit]
+Description=OpenAI API compatible AI server
+
+[Service]
+EnvironmentFile=-%{_sysconfdir}/sysconfig/llama-server
+ExecStart=bash -c "exec %{_bindir}/llama-server $${MODEL:+--model $${MODEL}} $${HOST:+--host $${HOST}} $${PORT:+--port $${PORT}} $${API_KEY:+--api_key $${API_KEY}} $${LLAMA_OPTIONS}"
+KillMode=process
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat >%{buildroot}%{_sysconfdir}/sysconfig/llama-server <<'EOF'
+# Point this at the LLM you want to use
+# Models can be found at https://huggingface.co/, e.g.
+# https://huggingface.co/lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF/blob/main/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf
+#MODEL=/srv/ai/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf
+# Change this to something secure that only legit clients know
+#API_KEY=OpenMandriva
+# Host and port to listen on (use 0.0.0.0 to listen on all IPv4 addresses)
+HOST=127.0.0.1
+PORT=8080
+# Extra options passed to llama-server - e.g. GPU offload control
+LLAMA_OPTIONS="--n-gpu-layers -1"
+EOF
+
 mkdir -p %{buildroot}%{_datarootdir}/%{name}
 cp -r %{_vpath_srcdir}/examples %{buildroot}%{_datarootdir}/%{name}/
 cp -r %{_vpath_srcdir}/models %{buildroot}%{_datarootdir}/%{name}/
@@ -274,9 +316,10 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 
 %files
 %license LICENSE
-%{_libdir}/libllama.so.%{soversion}
-%{_libdir}/libggml.so.%{soversion}
-%{_libdir}/libggml-base.so.%{soversion}
+%{_libdir}/libggml.so.*
+%{_libdir}/libggml-base.so.*
+%{_libdir}/libllama.so.*
+%{_libdir}/libmtmd.so.*
 #{_bindir}/vulkan-shaders-gen
 %dir %{_libdir}/ggml-backends-%{soversion}
 %{_libdir}/ggml-backends-%{soversion}/*
@@ -307,10 +350,16 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %endif
 
 %if %{with examples}
+%files server
+%{_bindir}/llama-server
+%{_unitdir}/llama.service
+%config(noreplace) %{_sysconfdir}/sysconfig/llama-server
+
 %files examples
 %{_bindir}/convert_hf_to_gguf.py
 %{_bindir}/gguf-*
 %{_bindir}/llama-*
+%exclude %{_bindir}/llama-server
 %{_datarootdir}/%{name}/
 %{python3_sitelib}/%{pypi_name}
 %{python3_sitelib}/%{pypi_name}*.dist-info
