@@ -51,6 +51,7 @@ Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{v
 %global optflags %{optflags} -O3
 %endif
 
+BuildRequires:	make
 BuildRequires:  xxd
 BuildRequires:  cmake
 BuildRequires:  curl
