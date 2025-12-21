@@ -24,8 +24,8 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:		b7274
-Release:		2
+Version:		b7499
+Release:		1
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
 
@@ -188,7 +188,7 @@ find . -name '.gitignore' -exec rm -rf {} \;
 
 %build
 %if %{with examples}
-cd %{_vpath_srcdir}/gguf-py
+cd gguf-py
 %py_build
 cd -
 %endif
@@ -257,7 +257,7 @@ module purge
 
 %install
 %if %{with examples}
-cd %{_vpath_srcdir}/gguf-py
+cd gguf-py
 %py_install
 cd -
 %endif
@@ -297,9 +297,9 @@ LLAMA_OPTIONS="--n-gpu-layers -1"
 EOF
 
 mkdir -p %{buildroot}%{_datarootdir}/%{name}
-cp -r %{_vpath_srcdir}/examples %{buildroot}%{_datarootdir}/%{name}/
-cp -r %{_vpath_srcdir}/models %{buildroot}%{_datarootdir}/%{name}/
-cp -r %{_vpath_srcdir}/README.md %{buildroot}%{_datarootdir}/%{name}/
+cp -r examples %{buildroot}%{_datarootdir}/%{name}/
+cp -r models %{buildroot}%{_datarootdir}/%{name}/
+cp -r README.md %{buildroot}%{_datarootdir}/%{name}/
 rm -rf %{buildroot}%{_datarootdir}/%{name}/examples/llama.android
 %else
 rm %{buildroot}%{_bindir}/convert*.py
