@@ -83,6 +83,8 @@ BuildRequires:	pkgconfig(OpenCL)
 %if %{with rocm}
 BuildRequires:	rocm-rpm-macros
 BuildRequires:	hipcc
+BuildRequires:	rocminfo
+BuildRequires:	clang-tools
 BuildRequires:	rocm-hip-devel
 BuildRequires:	rocm-comgr-devel
 BuildRequires:	rocm-runtime-devel
