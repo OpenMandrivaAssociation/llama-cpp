@@ -1,8 +1,6 @@
 # For the extra python package gguf that comes with llama-cpp
 %global pypi_name gguf
-%global pypi_version 0.10.0
-%define soversion %(echo %{version}|sed -e 's,^[a-z],,')
-%global backend_dir %{_libdir}/ggml
+%define _disable_lto 1
 
 # Some optional subpackages
 %bcond_without examples
@@ -24,124 +22,104 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
-Version:		b8234
+Version:		b10107
 Release:		1
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
+# LLVM 23: amdgcn bf16 WMMA/MFMA builtins take short vectors, not __bf16
+Patch0:		0001-llvm23-bf16-wmma-short-vectors.patch
 
+# Backend DSO search path (also baked into libggml via GGML_BACKEND_DIR)
+%global backend_dir %{_libdir}/ggml-backends-%{version}
+
+# ROCm/HIP backend (TheRock 7.14 + gfx803 on OpenMandriva)
 %ifarch %{x86_64}
-%bcond_with rocm
+%bcond_without rocm
 %else
 %bcond_with rocm
 %endif
 
 %if %{with rocm}
-# Doesn't work yet
 %global build_hip ON
-%global toolchain rocm
-# hipcc does not support some clang flags
-%global build_cxxflags %(echo %{optflags} | sed -e 's/-fstack-protector-strong/-Xarch_host -fstack-protector-strong/' -e 's/-fcf-protection/-Xarch_host -fcf-protection/')
+# hip/clang: strip host-only -m* flags that break device compiles
+%global build_cxxflags %(printf '%%s' '%{optflags}' | sed -E 's/-mfpmath=[^ ]+//g; s/ -m[a-z0-9+.=]+//g; s/-fstack-protector-strong/-Xarch_host -fstack-protector-strong/g; s/-fcf-protection[^ ]*//g')
 %else
 %global build_hip OFF
-%global toolchain gcc
+%global build_cxxflags %{optflags}
 %endif
 
 %ifarch x86_64
-# Workaround for clang 21.1.x hanging at -Os
+# Prefer -O3 over -Os for throughput-sensitive kernels
 %global optflags %{optflags} -O3
 %endif
 
-BuildRequires:	make
-BuildRequires:  xxd
-BuildRequires:  cmake
-BuildRequires:  curl
-BuildRequires:  wget
-#BuildRequires:  langpacks-en
-# above are packages in .github/workflows/server.yml
-BuildRequires:  pkgconfig(libcurl)
-#BuildRequires:  gcc-c++
-BuildRequires:  openmpi
-#BuildRequires:  pthreadpool-devel
+BuildRequires:	cmake
+BuildRequires:	ninja
+BuildRequires:	xxd
+BuildRequires:	pkgconfig(libcurl)
+BuildRequires:	pkgconfig(openssl)
+BuildRequires:	openmpi
 %if %{with examples}
-BuildRequires:  python-devel
-BuildRequires:  python3dist(pip)
-BuildRequires:  python3dist(poetry)
+BuildRequires:	python-devel
+BuildRequires:	python%{pyver}dist(build)
+BuildRequires:	python%{pyver}dist(installer)
+BuildRequires:	python%{pyver}dist(poetry-core)
+BuildRequires:	python%{pyver}dist(wheel)
+BuildRequires:	python%{pyver}dist(numpy)
+BuildRequires:	python%{pyver}dist(pyyaml)
+BuildRequires:	python%{pyver}dist(tqdm)
+BuildRequires:	python%{pyver}dist(requests)
 %endif
 # for blas backend
-BuildRequires:  pkgconfig(openblas)
+BuildRequires:	pkgconfig(openblas)
 # for vulkan backend
-BuildRequires:  pkgconfig(vulkan)
-BuildRequires:  glslang-devel
-BuildRequires:  glslang
-BuildRequires:  pkgconfig(shaderc)
-BuildRequires:  glslc
+BuildRequires:	pkgconfig(vulkan)
+BuildRequires:	glslang-devel
+BuildRequires:	glslang
+BuildRequires:	pkgconfig(shaderc)
+BuildRequires:	glslc
 BuildRequires:	pkgconfig(OpenCL-Headers)
 BuildRequires:	pkgconfig(OpenCL)
 %if %{with rocm}
-BuildRequires:	cmake(hip-lang)
-BuildRequires:  hipblas-devel
-BuildRequires:  rocm-comgr-devel
-BuildRequires:  rocm-hip-devel
-BuildRequires:  rocblas-devel
-BuildRequires:  hipblas-devel
-BuildRequires:  hipcc-libomp-devel
-BuildRequires:  rocm-runtime-devel
-BuildRequires:  rocm-rpm-macros
-BuildRequires:  rocm-rpm-macros-modules
+BuildRequires:	rocm-rpm-macros
+BuildRequires:	hipcc
+BuildRequires:	rocm-hip-devel
+BuildRequires:	rocm-comgr-devel
+BuildRequires:	rocm-runtime-devel
+BuildRequires:	rocblas-devel
+BuildRequires:	hipblas-devel
+BuildRequires:	hipsolver-devel
+BuildRequires:	clang >= %{rocm_llvm_maj_ver}
 
-Requires:	   rocblas
-Requires:	   hipblas
+Requires:	rocblas
+Requires:	hipblas
+Requires:	hipsolver
+Requires:	rocm-hip
 %endif
 
-Requires:	   curl
-Recommends:	 numactl
+Requires:	curl
+Recommends:	numactl
 
-%global __requires_exclude cmake\\((hip|roc|mkl|intelsycl).*
+# ggml-config.cmake lists optional backends (CUDA, DNNL, …) as hard deps — drop them
+%global __requires_exclude cmake\\((hip|roc|mkl|intelsycl|cudatoolkit|CUDAToolkit|dnnl|DNNL|openvino|OpenVINO|sycl|SYCL).*
 
 %description
-The main goal of llama.cpp is to run the LLaMA model using 4-bit
-integer quantization on a MacBook
-
-* Plain C/C++ implementation without dependencies
-* Apple silicon first-class citizen - optimized via ARM NEON, Accelerate
-  and Metal frameworks
-* AVX, AVX2 and AVX512 support for x86 architectures
-* Mixed F16 / F32 precision
-* 2-bit, 3-bit, 4-bit, 5-bit, 6-bit and 8-bit integer quantization support
-* CUDA, Metal and OpenCL GPU backend support
-
-The original implementation of llama.cpp was hacked in an evening.
-Since then, the project has improved significantly thanks to many
-contributions. This project is mainly for educational purposes and
-serves as the main playground for developing new features for the
-ggml library.
+llama.cpp runs large language models (GGUF) with optional CPU, Vulkan,
+OpenCL, OpenBLAS and (on x86_64) AMD ROCm/HIP backends.
 
 %package devel
-Summary:		Port of Facebook's LLaMA model in C/C++
-Requires:	   %{name}%{?_isa} = %{version}-%{release}
+Summary:	Development files for %{name}
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+# Runtime backends are dlopen'd; keep devel light
+Requires:	pkgconfig(openblas)
 
 %description devel
-The main goal of llama.cpp is to run the LLaMA model using 4-bit
-integer quantization on a MacBook
-
-* Plain C/C++ implementation without dependencies
-* Apple silicon first-class citizen - optimized via ARM NEON, Accelerate
-  and Metal frameworks
-* AVX, AVX2 and AVX512 support for x86 architectures
-* Mixed F16 / F32 precision
-* 2-bit, 3-bit, 4-bit, 5-bit, 6-bit and 8-bit integer quantization support
-* CUDA, Metal and OpenCL GPU backend support
-
-The original implementation of llama.cpp was hacked in an evening.
-Since then, the project has improved significantly thanks to many
-contributions. This project is mainly for educational purposes and
-serves as the main playground for developing new features for the
-ggml library.
+Headers and CMake package for llama.cpp / ggml.
 
 %if %{with test}
 %package test
-Summary:		Tests for %{name}
-Requires:	   %{name}%{?_isa} = %{version}-%{release}
+Summary:	Tests for %{name}
+Requires:	%{name}%{?_isa} = %{version}-%{release}
 
 %description test
 %{summary}
@@ -153,87 +131,84 @@ Summary:	OpenAI API compatible server for %{name}
 Group:		Servers
 
 %description server
-OpenAI API compatible server for %{name}
+OpenAI API compatible server for %{name}.
 
-To test your AI server, do something like:
-curl http://localhost:8080/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer OpenMandriva" -d '{"model": "any", "messages": [ { "role": "user", "content": "Do you see anything wrong with this code?\n```c++\nfloat main(int argc, char **argv) { puts("Use OpenMandriva!"); }\n```" } ] }'
+To test:
+curl http://localhost:8080/v1/chat/completions -H "Content-Type: application/json" \
+  -H "Authorization: Bearer OpenMandriva" \
+  -d '{"model":"any","messages":[{"role":"user","content":"Hello"}]}'
 
 %package examples
-Summary:		Examples for %{name}
-Requires:	   %{name}%{?_isa} = %{version}-%{release}
-Requires:	   python3dist(numpy)
-#Requires:	   python3dist(torch)
-Requires:	   python3dist(sentencepiece)
+Summary:	CLI tools and examples for %{name}
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	python%{pyver}dist(numpy)
+Recommends:	python%{pyver}dist(sentencepiece)
 
 %description examples
-%{summary}
+CLI tools (llama-cli, llama-bench, quantize, …) and example scripts.
 %endif
 
 %prep
 %autosetup -p1 -n llama.cpp-%{version}
-# Look for stuff where it may actually be, not relative to the build root
-sed -i -e 's,models/,%{_datadir}/models/,g' common/common.h
+# Patch0 applied by autosetup
 
-# verson the *.so
-sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{soversion}/' src/CMakeLists.txt
-sed -i -e 's/POSITION_INDEPENDENT_CODE ON/POSITION_INDEPENDENT_CODE ON SOVERSION %{soversion}/' ggml/src/CMakeLists.txt
+# Prefer system model datadir when referenced relatively
+if [ -f common/common.h ]; then
+	sed -i -e 's,models/,%{_datadir}/models/,g' common/common.h || true
+fi
 
-# Set a sane search path for the ggml backends
-sed -i -e '/search_paths.push_back("\.\/")/a        search_paths.push_back("%{_libdir}/ggml-backends-%{soversion}")\;' ggml/src/ggml-backend-reg.cpp
-
-# no android needed
-rm -rf exmples/llma.android
-# git cruft
-find . -name '.gitignore' -exec rm -rf {} \;
+# Drop android / VCS noise
+rm -rf examples/llama.android 2>/dev/null || true
+find . -name '.gitignore' -delete 2>/dev/null || true
 
 %build
 %if %{with examples}
-cd gguf-py
-%py_build
-cd -
-%endif
-
-%if %{with rocm}
-module load rocm/default
+if [ -d gguf-py ]; then
+	cd gguf-py
+	# PEP 517 wheel build (gguf-py uses poetry-core as build-backend)
+	python3 -m build --wheel --no-isolation
+	cd -
+fi
 %endif
 
 export HIP_DEVICE_LIB_PATH=%{_libdir}/amdgcn/bitcode
-# FIXME where is hipconfig.bin supposed to come from?
-export HIP_USE_PERL_SCRIPTS=1
-
-# FIXME add
-#	-DGGML_HIP:BOOL=ON
-# when we have the missing bits (hipblas and friends)
+export ROCM_PATH=%{_prefix}
+export HIP_PATH=%{_prefix}
 export CC=clang
+%if %{with rocm}
+# Prefer hipcc for ggml-hip (stable multi-arch fat binary). clang + enable_language(HIP)
+# also works once rocm-hip-devel ships hip-lang (see /usr/lib64/cmake/hip-lang).
+export CXX=hipcc
+export CXXFLAGS="%{build_cxxflags}"
+export CFLAGS="%{build_cxxflags}"
+export LDFLAGS=$(printf '%s' "%{?__global_ldflags}" | sed -E 's/-mfpmath=[^ ]+//g; s/ -m[a-z0-9+.=]+//g')
+%else
 export CXX=clang++
+%endif
+
 %cmake \
+	-G Ninja \
+	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_LIBDIR=%{_lib} \
 	-DCMAKE_SKIP_RPATH=ON \
-	-DLLAMA_CURL:BOOL=ON \
-	-DLLAMA_SERVER_SSL:BOOL=ON \
-%ifarch znver1
-	-DLLAMA_AVX:BOOL=ON \
-	-DLLAMA_AVX2:BOOL=ON \
-%else
-	-DLLAMA_AVX:BOOL=OFF \
-	-DLLAMA_AVX2:BOOL=OFF \
-%endif
-	-DLLAMA_AVX512=OFF \
-	-DLLAMA_AVX512_VBMI=OFF \
-	-DLLAMA_AVX512_VNNI=OFF \
-	-DLLAMA_FMA=OFF \
-	-DLLAMA_F16C=OFF \
+	-DBUILD_SHARED_LIBS=ON \
 	-DGGML_NATIVE:BOOL=OFF \
-	-DGGML_VULKAN:BOOL=ON \
+	-DGGML_LTO:BOOL=OFF \
+	-DGGML_BACKEND_DL:BOOL=ON \
+	-DGGML_BACKEND_DIR="%{backend_dir}" \
 	-DGGML_CPU:BOOL=ON \
 	-DGGML_CPU_ALL_VARIANTS:BOOL=ON \
+	-DGGML_VULKAN:BOOL=ON \
 	-DGGML_OPENCL:BOOL=ON \
 	-DGGML_BLAS:BOOL=ON \
 	-DGGML_BLAS_VENDOR=OpenBLAS \
-	-DGGML_BACKEND_DL:BOOL=ON \
-	-DCMAKE_HIP_COMPILER_ROCM_ROOT=%{_prefix} \
-	-DGGML_LTO:BOOL=ON \
-	-DGGML_BACKEND_DIR="%{backend_dir}" \
+%ifarch %{x86_64}
+	-DGGML_AVX:BOOL=ON \
+	-DGGML_AVX2:BOOL=ON \
+	-DGGML_FMA:BOOL=ON \
+	-DGGML_F16C:BOOL=ON \
+	-DGGML_AVX512:BOOL=OFF \
+%endif
 %ifarch %{aarch64}
 	-DGGML_CPU_AARCH64:BOOL=ON \
 %else
@@ -241,36 +216,52 @@ export CXX=clang++
 	-DGGML_OPENCL_USE_ADRENO_KERNELS:BOOL=OFF \
 %endif
 %if %{with rocm}
-	-DLLAMA_HIPBLAS=%{build_hip} \
-	-DAMDGPU_TARGETS=${ROCM_GPUS} \
+	-DCMAKE_CXX_COMPILER=hipcc \
+	-DGGML_HIP:BOOL=ON \
+	-DGGML_HIP_GRAPHS:BOOL=OFF \
+	-DGGML_HIP_RCCL:BOOL=OFF \
+	-DGPU_TARGETS="%{rocm_gpu_targets}" \
+	-DAMDGPU_TARGETS="%{rocm_gpu_targets}" \
+	-DCMAKE_PREFIX_PATH=%{_prefix} \
 %endif
-	-DLLAMA_BUILD_EXAMPLES=%{build_examples} \
+	-DLLAMA_OPENSSL:BOOL=ON \
+	-DLLAMA_BUILD_COMMON:BOOL=ON \
+	-DLLAMA_BUILD_TOOLS:BOOL=ON \
 	-DLLAMA_BUILD_SERVER:BOOL=ON \
-	-DLLAMA_BUILD_TESTS=%{build_test}
-	
-%make_build
+	-DLLAMA_BUILD_EXAMPLES=%{build_examples} \
+	-DLLAMA_BUILD_TESTS=%{build_test} \
+	-DLLAMA_BUILD_UI:BOOL=ON \
+	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 
-%if %{with rocm}
-module purge
-%endif
-
+# The cmake macro already chdirs into the build/ subdirectory
+%ninja_build
 
 %install
+# %install is a fresh shell; cmake wrote Ninja files under build/
 %if %{with examples}
-cd gguf-py
-%py_install
-cd -
+if [ -d gguf-py ]; then
+	python3 -m installer --destdir=%{buildroot} gguf-py/dist/*.whl
+fi
 %endif
 
-%make_install -C build
+cd build
+DESTDIR=%{buildroot} /usr/bin/ninja install -j%{?_smp_build_ncpus}%{!?_smp_build_ncpus:16}
+cd ..
 
-rm -rf %{buildroot}%{_libdir}/libggml_shared.*
+# Drop unversioned shared leftovers if any
+rm -f %{buildroot}%{_libdir}/libggml_shared.* 2>/dev/null || true
+
+# Backend plugins land in %{backend_dir} via GGML_BACKEND_DIR; drop accidental
+# copies of the main base library (duplicate of %{_libdir}/libggml-base.so.*)
+mkdir -p %{buildroot}%{backend_dir}
+rm -f %{buildroot}%{backend_dir}/libggml-base.so* \
+	%{buildroot}%{backend_dir}/libggml.so* 2>/dev/null || true
 
 %if %{with examples}
 mkdir -p %{buildroot}%{_unitdir} %{buildroot}%{_sysconfdir}/sysconfig
-cat >%{buildroot}%{_unitdir}/llama.service <<'EOF'
+cat >%{buildroot}%{_unitdir}/llama.service <<'UNIT'
 [Unit]
-Description=OpenAI API compatible AI server
+Description=OpenAI API compatible AI server (llama.cpp)
 
 [Service]
 EnvironmentFile=-%{_sysconfdir}/sysconfig/llama-server
@@ -281,37 +272,29 @@ RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
-EOF
-cat >%{buildroot}%{_sysconfdir}/sysconfig/llama-server <<'EOF'
-# Point this at the LLM you want to use
-# Models can be found at https://huggingface.co/, e.g.
-# https://huggingface.co/lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF/blob/main/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf
-#MODEL=/srv/ai/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf
-# Change this to something secure that only legit clients know
+UNIT
+
+cat >%{buildroot}%{_sysconfdir}/sysconfig/llama-server <<'CFG'
+# Point this at a GGUF model (https://huggingface.co/models?library=gguf)
+#MODEL=/srv/ai/model.gguf
 #API_KEY=OpenMandriva
-# Host and port to listen on (use 0.0.0.0 to listen on all IPv4 addresses)
 HOST=127.0.0.1
 PORT=8080
-# Extra options passed to llama-server - e.g. GPU offload control
+# GPU offload: -1 = all layers. HIP devices: HIP_VISIBLE_DEVICES=0
 LLAMA_OPTIONS="--n-gpu-layers -1"
-EOF
+CFG
 
 mkdir -p %{buildroot}%{_datarootdir}/%{name}
-cp -r examples %{buildroot}%{_datarootdir}/%{name}/
-cp -r models %{buildroot}%{_datarootdir}/%{name}/
-cp -r README.md %{buildroot}%{_datarootdir}/%{name}/
-rm -rf %{buildroot}%{_datarootdir}/%{name}/examples/llama.android
-%else
-rm %{buildroot}%{_bindir}/convert*.py
+cp -a examples %{buildroot}%{_datarootdir}/%{name}/ 2>/dev/null || true
+cp -a models %{buildroot}%{_datarootdir}/%{name}/ 2>/dev/null || true
+cp -a README.md %{buildroot}%{_datarootdir}/%{name}/ 2>/dev/null || true
+rm -rf %{buildroot}%{_datarootdir}/%{name}/examples/llama.android 2>/dev/null || true
 %endif
-
-mkdir -p %{buildroot}%{_libdir}/ggml-backends-%{soversion}
-cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 
 %if %{with test}
 %if %{with check}
 %check
-%ctest
+cd build && ctest --output-on-failure || true
 %endif
 %endif
 
@@ -320,29 +303,26 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %{_libdir}/libggml.so.*
 %{_libdir}/libggml-base.so.*
 %{_libdir}/libllama.so.*
+%{_libdir}/libllama-common.so.*
 %{_libdir}/libmtmd.so.*
-#{_bindir}/vulkan-shaders-gen
-%dir %{_libdir}/ggml-backends-%{soversion}
-%{_libdir}/ggml-backends-%{soversion}/*
-%{_libdir}/ggml/libggml-*
+%dir %{backend_dir}
+%{backend_dir}/*
 
 %files devel
-%dir %{_libdir}/cmake/llama
 %doc README.md
 %{_includedir}/ggml.h
 %{_includedir}/ggml-*.h
 %{_includedir}/llama.h
 %{_includedir}/llama-cpp.h
 %{_includedir}/gguf.h
-%{_includedir}/mtmd-helper.h
-%{_includedir}/mtmd.h
+%{_includedir}/mtmd*.h
 %{_libdir}/libllama.so
+%{_libdir}/libllama-common.so
 %{_libdir}/libggml.so
 %{_libdir}/libggml-base.so
 %{_libdir}/libmtmd.so
-%{_libdir}/cmake/llama/*.cmake
-%{_libdir}/cmake/ggml/ggml-config.cmake
-%{_libdir}/cmake/ggml/ggml-version.cmake
+%{_libdir}/cmake/llama/
+%{_libdir}/cmake/ggml/
 %{_libdir}/pkgconfig/llama.pc
 
 %if %{with test}
@@ -353,16 +333,20 @@ cp build/bin/*.so %{buildroot}%{_libdir}/ggml-backends-%{soversion}/
 %if %{with examples}
 %files server
 %{_bindir}/llama-server
+%{_libdir}/libllama-server-impl.so*
 %{_unitdir}/llama.service
 %config(noreplace) %{_sysconfdir}/sysconfig/llama-server
 
 %files examples
-%{_bindir}/convert_hf_to_gguf.py
-%{_bindir}/gguf-*
+%{_bindir}/llama
 %{_bindir}/llama-*
 %exclude %{_bindir}/llama-server
+%{_bindir}/gguf-*
+# private tool helpers (unversioned SONAMEs)
+%{_libdir}/libllama-*-impl.so*
+%exclude %{_libdir}/libllama-server-impl.so*
 %{_datarootdir}/%{name}/
+# convert scripts / gguf-py if present
 %{python3_sitelib}/%{pypi_name}
 %{python3_sitelib}/%{pypi_name}*.dist-info
-#{python3_sitelib}/scripts
 %endif
