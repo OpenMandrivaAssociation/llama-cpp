@@ -23,7 +23,7 @@ Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Version:		b10107
-Release:	2
+Release:	3
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
@@ -208,13 +208,9 @@ export CXX=clang++
 	-DGGML_OPENCL:BOOL=ON \
 	-DGGML_BLAS:BOOL=ON \
 	-DGGML_BLAS_VENDOR=OpenBLAS \
-%ifarch %{x86_64}
-	-DGGML_AVX:BOOL=ON \
-	-DGGML_AVX2:BOOL=ON \
-	-DGGML_FMA:BOOL=ON \
-	-DGGML_F16C:BOOL=ON \
-	-DGGML_AVX512:BOOL=OFF \
-%endif
+# Do not force GGML_AVX/AVX2/FMA/F16C here: that would require those ISAs in
+# the base CPU backend on all x86_64. GGML_CPU_ALL_VARIANTS builds ISA-specific
+# plugins for runtime dispatch instead.
 %ifarch %{aarch64}
 	-DGGML_CPU_AARCH64:BOOL=ON \
 %else
