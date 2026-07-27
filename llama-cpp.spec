@@ -24,6 +24,7 @@ Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Version:		b10107
 Release:		1
+%{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
 # LLVM 23: amdgcn bf16 WMMA/MFMA builtins take short vectors, not __bf16
@@ -55,6 +56,7 @@ Patch0:		0001-llvm23-bf16-wmma-short-vectors.patch
 
 BuildRequires:	cmake
 BuildRequires:	ninja
+BuildRequires:	git-core
 BuildRequires:	xxd
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
