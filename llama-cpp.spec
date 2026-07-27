@@ -23,7 +23,7 @@ Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Version:		b10107
-Release:	6
+Release:	7
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
@@ -192,30 +192,25 @@ export LDFLAGS=$(printf '%s' "%{?__global_ldflags}" | sed -E 's/-mfpmath=[^ ]+//
 export CXX=clang++
 %endif
 
-# Arch-specific -D flags must be assembled in shell vars: %ifarch inside a
-# backslash-continued %cmake block breaks the generated shell (OM %cmake).
+# Imperative cmake (same approach as rccl): avoid OM %%cmake multi-line
+# continuation pitfalls with arch/HIP conditionals.
 %ifarch znver1
 _ggml_isa_flags='-DGGML_AVX:BOOL=ON -DGGML_AVX2:BOOL=ON'
 %else
 _ggml_isa_flags='-DGGML_AVX:BOOL=OFF -DGGML_AVX2:BOOL=OFF'
 %endif
-_ggml_isa_flags="$_ggml_isa_flags -DGGML_AVX512:BOOL=OFF -DGGML_FMA:BOOL=OFF -DGGML_F16C:BOOL=OFF"
 %ifarch %{aarch64}
 _ggml_arch_flags='-DGGML_CPU_AARCH64:BOOL=ON'
 %else
 _ggml_arch_flags='-DGGML_CPU_AARCH64:BOOL=OFF -DGGML_OPENCL_USE_ADRENO_KERNELS:BOOL=OFF'
 %endif
-%if %{with rocm}
-# GPU lists use ';'; keep them inside double quotes at assignment time so the
-# shell does not treat ';' as a command separator.
-_ggml_hip_flags="-DCMAKE_CXX_COMPILER=hipcc -DGGML_HIP:BOOL=ON -DGGML_HIP_GRAPHS:BOOL=OFF -DGGML_HIP_RCCL:BOOL=OFF -DGPU_TARGETS=%{rocm_gpu_targets} -DAMDGPU_TARGETS=%{rocm_gpu_targets} -DCMAKE_PREFIX_PATH=%{_prefix}"
-%else
-_ggml_hip_flags=
-%endif
 
-%cmake \
+mkdir -p build
+cd build
+/usr/bin/cmake .. \
 	-G Ninja \
 	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_INSTALL_PREFIX=%{_prefix} \
 	-DCMAKE_INSTALL_LIBDIR=%{_lib} \
 	-DCMAKE_SKIP_RPATH=ON \
 	-DBUILD_SHARED_LIBS=ON \
@@ -231,7 +226,18 @@ _ggml_hip_flags=
 	-DGGML_BLAS_VENDOR=OpenBLAS \
 	$_ggml_isa_flags \
 	$_ggml_arch_flags \
-	$_ggml_hip_flags \
+	-DGGML_AVX512:BOOL=OFF \
+	-DGGML_FMA:BOOL=OFF \
+	-DGGML_F16C:BOOL=OFF \
+%if %{with rocm}
+	-DCMAKE_CXX_COMPILER=hipcc \
+	-DGGML_HIP:BOOL=ON \
+	-DGGML_HIP_GRAPHS:BOOL=OFF \
+	-DGGML_HIP_RCCL:BOOL=OFF \
+	-DGPU_TARGETS="%{rocm_gpu_targets}" \
+	-DAMDGPU_TARGETS="%{rocm_gpu_targets}" \
+	-DCMAKE_PREFIX_PATH=%{_prefix} \
+%endif
 	-DLLAMA_OPENSSL:BOOL=ON \
 	-DLLAMA_BUILD_COMMON:BOOL=ON \
 	-DLLAMA_BUILD_TOOLS:BOOL=ON \
@@ -241,7 +247,6 @@ _ggml_hip_flags=
 	-DLLAMA_BUILD_UI:BOOL=ON \
 	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 
-# The cmake macro already chdirs into the build/ subdirectory
 %ninja_build
 
 %install
