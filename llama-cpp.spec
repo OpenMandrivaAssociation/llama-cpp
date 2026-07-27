@@ -78,6 +78,8 @@ BuildRequires:	pkgconfig(openblas)
 BuildRequires:	pkgconfig(vulkan)
 BuildRequires:	glslang-devel
 BuildRequires:	glslang
+# ggml-vulkan find_package(SPIRV-Headers REQUIRED)
+BuildRequires:	cmake(SPIRV-Headers)
 BuildRequires:	pkgconfig(shaderc)
 BuildRequires:	glslc
 BuildRequires:	pkgconfig(OpenCL-Headers)
