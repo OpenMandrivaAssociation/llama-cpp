@@ -23,7 +23,7 @@ Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Version:		b10107
-Release:	4
+Release:	5
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
@@ -192,6 +192,8 @@ export LDFLAGS=$(printf '%s' "%{?__global_ldflags}" | sed -E 's/-mfpmath=[^ ]+//
 export CXX=clang++
 %endif
 
+# znver1: enable AVX/AVX2; other arches keep them off (do not put comments
+# inside the %cmake \\ continuation — they break the shell command).
 %cmake \
 	-G Ninja \
 	-DCMAKE_BUILD_TYPE=Release \
@@ -208,8 +210,6 @@ export CXX=clang++
 	-DGGML_OPENCL:BOOL=ON \
 	-DGGML_BLAS:BOOL=ON \
 	-DGGML_BLAS_VENDOR=OpenBLAS \
-# znver1 packages may enable AVX/AVX2; other arches stay conservative.
-# GGML_CPU_ALL_VARIANTS still builds extra ISA plugins for runtime dispatch.
 %ifarch znver1
 	-DGGML_AVX:BOOL=ON \
 	-DGGML_AVX2:BOOL=ON \
