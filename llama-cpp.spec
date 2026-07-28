@@ -21,9 +21,10 @@
 
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
-License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Version:		b10107
-Release:	7
+Release:		8
+License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
+Group:			Sciences/Other
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
@@ -115,6 +116,7 @@ OpenCL, OpenBLAS and (on x86_64) AMD ROCm/HIP backends.
 
 %package devel
 Summary:	Development files for %{name}
+Group:		Development/C++
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 # Runtime backends are dlopen'd; keep devel light
 Requires:	pkgconfig(openblas)
@@ -125,6 +127,7 @@ Headers and CMake package for llama.cpp / ggml.
 %if %{with test}
 %package test
 Summary:	Tests for %{name}
+Group:		Development/Other
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 
 %description test
@@ -146,6 +149,7 @@ curl http://localhost:8080/v1/chat/completions -H "Content-Type: application/jso
 
 %package examples
 Summary:	CLI tools and examples for %{name}
+Group:		Sciences/Other
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	python%{pyver}dist(numpy)
 Recommends:	python%{pyver}dist(sentencepiece)
