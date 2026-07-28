@@ -1,6 +1,10 @@
 # For the extra python package gguf that comes with llama-cpp
 %global pypi_name gguf
 %define _disable_lto 1
+# Out-of-tree cmake/ninja leaves empty debugsourcefiles.list; rpm then fails
+# with "Empty %files file .../debugsourcefiles.list" on x86_64/aarch64.
+# Keep -debuginfo; skip the empty -debugsource subpackage.
+%undefine _debugsource_packages
 
 # Some optional subpackages
 %bcond_without examples
@@ -22,7 +26,7 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 Version:		b10107
-Release:		9
+Release:		10
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
