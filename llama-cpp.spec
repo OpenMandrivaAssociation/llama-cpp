@@ -22,7 +22,7 @@
 Summary:		Port of Facebook's LLaMA model in C/C++
 Name:			llama-cpp
 Version:		b10107
-Release:		8
+Release:		9
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 %{!?rocm_llvm_maj_ver:%global rocm_llvm_maj_ver 23}
@@ -34,8 +34,10 @@ Patch0:		0001-llvm23-bf16-wmma-short-vectors.patch
 # Backend DSO search path (also baked into libggml via GGML_BACKEND_DIR)
 %global backend_dir %{_libdir}/ggml-backends-%{version}
 
-# ROCm/HIP backend (TheRock 7.14 + gfx803 on OpenMandriva)
-%ifarch %{x86_64}
+# ROCm/HIP backend (TheRock 7.14 + gfx803 on OpenMandriva).
+# Only enable where the 7.14 stack is published — currently znver1 only.
+# Plain x86_64 still has stale/broken ROCm 17.x (LLVM 18.1) packages.
+%ifarch znver1
 %bcond_without rocm
 %else
 %bcond_with rocm
@@ -61,7 +63,7 @@ BuildRequires:	git-core
 BuildRequires:	xxd
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	openmpi
+# openmpi not used (GGML_MPI off); BR breaks aarch64 — openmpi needs missing libhwloc.so.5
 %if %{with examples}
 BuildRequires:	python-devel
 BuildRequires:	python%{pyver}dist(build)
@@ -112,7 +114,7 @@ Recommends:	numactl
 
 %description
 llama.cpp runs large language models (GGUF) with optional CPU, Vulkan,
-OpenCL, OpenBLAS and (on x86_64) AMD ROCm/HIP backends.
+OpenCL, OpenBLAS and (on znver1) AMD ROCm/HIP backends.
 
 %package devel
 Summary:	Development files for %{name}
