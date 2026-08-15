@@ -26,7 +26,7 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		b10361
+Version:		b10448
 Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
@@ -38,7 +38,7 @@ Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{v
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml)
+BuildRequires:	cmake(ggml) >= 0.20.0
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	python-devel
@@ -53,7 +53,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.19.0
+Requires:	%{mklibname ggml}%{?_isa} >= 0.20.0
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
