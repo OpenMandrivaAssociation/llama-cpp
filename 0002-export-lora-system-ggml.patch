@@ -1,0 +1,60 @@
+diff -Nru a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+--- a/tools/CMakeLists.txt	2026-08-16 14:12:55.000000000 +0200
++++ b/tools/CMakeLists.txt	2026-08-18 11:21:17.808893314 +0200
+@@ -33,10 +33,10 @@
+     if (GGML_RPC)
+         add_subdirectory(rpc)
+     endif()
++    add_subdirectory(export-lora)
+     if (NOT GGML_BACKEND_DL AND GGML_CPU)
+-        # these tools use backends directly (no dynamic loading) and depend on CPU backend symbols
++        # uses CPU backend symbols directly (no dynamic loading)
+         add_subdirectory(cvector-generator)
+-        add_subdirectory(export-lora)
+     endif()
+     add_subdirectory(fit-params)
+     add_subdirectory(results)
+diff -Nru a/tools/export-lora/export-lora.cpp b/tools/export-lora/export-lora.cpp
+--- a/tools/export-lora/export-lora.cpp	2026-08-16 14:12:55.000000000 +0200
++++ b/tools/export-lora/export-lora.cpp	2026-08-18 11:21:17.850455886 +0200
+@@ -1,5 +1,6 @@
+ #include "ggml.h"
+ #include "ggml-alloc.h"
++#include "ggml-backend.h"
+ #include "gguf.h"
+ 
+ #include "arg.h"
+@@ -154,7 +155,15 @@
+             /*.no_alloc   =*/ true,
+         };
+         ctx_out_ggml = ggml_init(params);
+-        backend = ggml_backend_cpu_init();
++        // Works with a linked libggml-cpu and with GGML_BACKEND_DL plugins
++        // (system libggml). ggml_backend_cpu_init() is not exported by libggml.
++        ggml_backend_load_all();
++        backend = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
++        if (!backend) {
++            throw std::runtime_error(
++                "failed to initialize CPU backend "
++                "(install a ggml-backend-cpu* plugin)");
++        }
+         allocr = ggml_gallocr_new(ggml_backend_get_default_buffer_type(backend));
+     }
+ 
+@@ -376,7 +385,15 @@
+         // compute
+         {
+             ggml_gallocr_alloc_graph(allocr, gf);
+-            ggml_backend_cpu_set_n_threads(backend, n_threads);
++            ggml_backend_dev_t dev = ggml_backend_get_device(backend);
++            if (dev) {
++                ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(dev);
++                auto set_n_threads_fn = (ggml_backend_set_n_threads_t)
++                    ggml_backend_reg_get_proc_address(reg, "ggml_backend_set_n_threads");
++                if (set_n_threads_fn) {
++                    set_n_threads_fn(backend, n_threads);
++                }
++            }
+             ggml_backend_graph_compute(backend, gf);
+         }
+ 
