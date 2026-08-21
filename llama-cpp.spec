@@ -26,7 +26,7 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		b10519
+Version:		b10549
 Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
@@ -88,7 +88,8 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 # 0002: llama-export-lora used ggml_backend_cpu_init() which is not in
 #       libggml when backends are dlopen'd. Load CPU via the registry.
 # 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). Port of
-#       MichelRosselli's model/apertus-v1.5 work onto b10519.
+#       MichelRosselli's model/apertus-v1.5 work onto b10519+ (still
+#       applies on b10549).
 # Keep after all preamble tags: %patchlist is a section-like directive.
 %patchlist
 0002-export-lora-system-ggml.patch
