@@ -142,7 +142,7 @@ GGUF on GPU is typically ~1 minute):
 until curl -sf http://localhost:8080/health; do sleep 1; done
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer OpenMandriva" \
+  -H "Authorization: Bearer $(grep ^API_KEY= /etc/sysconfig/llama-server 2>/dev/null |cut -d= -f2-)" \
   -d '{"model":"any","messages":[{"role":"user","content":"Hello"}]}'
 
 Authorization must match API_KEY in %{_sysconfdir}/sysconfig/llama-server
