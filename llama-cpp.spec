@@ -26,12 +26,15 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		b10453
-Release:		3
+Version:		b10519
+Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
 Source0:		https://github.com/ggml-org/llama.cpp/archive/%{version}/llama.cpp-%{version}.tar.gz
+# Official prebuilt web UI from the matching GitHub release. cmake embeds
+# tools/ui/dist; without this it tries npm or Hugging Face (ABF is offline).
+Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{version}/llama-%{version}-ui.tar.gz
 
 # Prefer -O3 over distro -Os for the inference hot path
 %global optflags %{optflags} -O3
@@ -76,17 +79,20 @@ BuildOption:	-DLLAMA_BUILD_SERVER:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_APP:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_EXAMPLES=%{build_examples}
 BuildOption:	-DLLAMA_BUILD_TESTS=%{build_test}
-# Source-tree UI only — prebuilt tarball is fetched from Hugging Face
-# and ABF builders have no network.
+# Embed Source1 (extracted to tools/ui/dist in %prep). Do not run npm or
+# fetch Hugging Face assets — ABF builders have no network.
 BuildOption:	-DLLAMA_BUILD_UI:BOOL=ON
 BuildOption:	-DLLAMA_USE_PREBUILT_UI:BOOL=OFF
 BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 
 # 0002: llama-export-lora used ggml_backend_cpu_init() which is not in
 #       libggml when backends are dlopen'd. Load CPU via the registry.
+# 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). Port of
+#       MichelRosselli's model/apertus-v1.5 work onto b10519.
 # Keep after all preamble tags: %patchlist is a section-like directive.
 %patchlist
 0002-export-lora-system-ggml.patch
+0003-apertus-1.5.patch
 
 %description
 llama.cpp runs GGUF language (and vision) models. Tensor kernels come
@@ -125,14 +131,25 @@ Requires:	%{name}%{?_isa} = %{EVRD}
 
 %description server
 OpenAI API compatible server for %{name}.
+The server also serves an embedded web UI at http://HOST:PORT/ .
 
 Config: %{_sysconfdir}/sysconfig/llama-server
 
-To test:
+To test (wait until weights are loaded; /v1/chat/completions returns
+HTTP 503 {"error":{"message":"Loading model"}} until then — a 6–8B
+GGUF on GPU is typically ~1 minute):
+
+until curl -sf http://localhost:8080/health; do sleep 1; done
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer OpenMandriva" \
   -d '{"model":"any","messages":[{"role":"user","content":"Hello"}]}'
+
+Authorization must match API_KEY in %{_sysconfdir}/sysconfig/llama-server
+(omit the header if API_KEY is unset).
+
+Apertus 1.0 (Instruct-2509) and Apertus 1.5 (swiss-ai/Apertus-v1.5-*)
+are both supported. 1.5 needs a matching mmproj GGUF for image/audio.
 
 %package examples
 Summary:	CLI tools and examples for %{name}
@@ -160,6 +177,11 @@ Merge a GGUF LoRA into a base GGUF:
 %prep
 %autosetup -p1 -n llama.cpp-%{version}
 
+# cmake priority 1: tools/ui/dist/index.html → embed, skip npm / Hugging Face.
+mkdir -p tools/ui/dist
+tar -xzf %{SOURCE1} --strip-components=1 -C tools/ui/dist
+test -f tools/ui/dist/index.html
+
 rm -rf examples/llama.android 2>/dev/null || true
 find . -name '.gitignore' -delete 2>/dev/null || true
 
@@ -171,6 +193,11 @@ if [ -d gguf-py ]; then
 	cd -
 fi
 %endif
+
+# Fail the build if cmake silently fell back to an empty UI.
+%build -a
+uih=$(find . -path '*/tools/ui/ui.h' -print -quit)
+test -n "$uih" && grep -q 'LLAMA_UI_HAS_ASSETS 1' "$uih"
 
 %if %{with examples}
 %install -a
@@ -187,6 +214,10 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=-%{_sysconfdir}/sysconfig/llama-server
 ExecStart=bash -c "exec %{_bindir}/llama-server $${MODEL:+--model $${MODEL}} $${HOST:+--host $${HOST}} $${PORT:+--port $${PORT}} $${API_KEY:+--api_key $${API_KEY}} $${LLAMA_OPTIONS}"
+# HTTP is up before the GGUF is on the GPU; /health is 503 until then.
+# Make "systemctl start" wait so the documented curl does not 503.
+TimeoutStartSec=300
+ExecStartPost=bash -c 'i=0; while [ $$i -lt 240 ]; do curl -sf --max-time 1 "http://$${HOST:-127.0.0.1}:$${PORT:-8080}/health" >/dev/null && exit 0; i=$$((i+1)); sleep 1; done; echo "llama-server did not become ready (check MODEL in %{_sysconfdir}/sysconfig/llama-server)" >&2; exit 1'
 KillMode=process
 Restart=on-failure
 RestartSec=5s
@@ -264,6 +295,11 @@ PORT=8080
 # auto-parser cannot compile that (fatal at load). Use the adapted
 # template llama.cpp already ships:
 #   --jinja --chat-template-file /usr/share/llama-cpp/models/templates/Apertus-8B-Instruct.jinja
+# Apertus 1.0 = Instruct-2509. Apertus 1.5 = swiss-ai/Apertus-v1.5-*
+# (multimodal, 262k ctx). 1.5 chat template:
+#   --jinja --chat-template-file /usr/share/llama-cpp/models/templates/swiss-ai-Apertus-v1.5.jinja
+# Convert HF 1.5 with llama-convert-hf-to-gguf (writes text GGUF + mmproj).
+# After start, /health is HTTP 503 "Loading model" until weights are ready.
 LLAMA_OPTIONS="--n-gpu-layers -1"
 CFG
 
