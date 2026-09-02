@@ -4,8 +4,8 @@
 
 %global pypi_name gguf
 # vX.Y.Z GitHub releases only ship nightly-tag.txt; the prebuilt web UI
-# is attached to the matching nightly (b10566 for 0.2.0).
-%global nightly_tag b10566
+# is attached to the matching nightly (b10621 for 0.3.0).
+%global nightly_tag b10621
 
 # Out-of-tree cmake/ninja can leave empty debugsourcefiles.list; rpm then
 # fails on x86_64/aarch64. Keep -debuginfo; skip empty -debugsource.
@@ -29,7 +29,7 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		0.2.0
+Version:		0.3.0
 Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
@@ -45,7 +45,7 @@ Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{nightly_tag}
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml) >= 0.21.0
+BuildRequires:	cmake(ggml) >= 0.22.0
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	python-devel
@@ -60,7 +60,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.21.0
+Requires:	%{mklibname ggml}%{?_isa} >= 0.22.0
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
@@ -93,7 +93,7 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 #       libggml when backends are dlopen'd. Load CPU via the registry.
 # 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). Port of
 #       MichelRosselli's model/apertus-v1.5 work onto b10519+ (still
-#       applies on 0.2.0).
+#       applies on 0.3.0).
 # Keep after all preamble tags: %patchlist is a section-like directive.
 %patchlist
 0002-export-lora-system-ggml.patch

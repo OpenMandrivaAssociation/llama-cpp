@@ -1,7 +1,7 @@
-diff -Nru a/tools/CMakeLists.txt b/tools/CMakeLists.txt
---- a/tools/CMakeLists.txt	2026-08-16 14:12:55.000000000 +0200
-+++ b/tools/CMakeLists.txt	2026-08-18 11:21:17.808893314 +0200
-@@ -33,10 +33,10 @@
+diff -ruN --no-dereference a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+--- a/tools/CMakeLists.txt
++++ b/tools/CMakeLists.txt
+@@ -32,10 +32,10 @@
      if (GGML_RPC)
          add_subdirectory(rpc)
      endif()
@@ -13,10 +13,10 @@ diff -Nru a/tools/CMakeLists.txt b/tools/CMakeLists.txt
 -        add_subdirectory(export-lora)
      endif()
      add_subdirectory(fit-params)
-     add_subdirectory(results)
-diff -Nru a/tools/export-lora/export-lora.cpp b/tools/export-lora/export-lora.cpp
---- a/tools/export-lora/export-lora.cpp	2026-08-16 14:12:55.000000000 +0200
-+++ b/tools/export-lora/export-lora.cpp	2026-08-18 11:21:17.850455886 +0200
+     if (GGML_METAL)
+diff -ruN --no-dereference a/tools/export-lora/export-lora.cpp b/tools/export-lora/export-lora.cpp
+--- a/tools/export-lora/export-lora.cpp
++++ b/tools/export-lora/export-lora.cpp
 @@ -1,5 +1,6 @@
  #include "ggml.h"
  #include "ggml-alloc.h"

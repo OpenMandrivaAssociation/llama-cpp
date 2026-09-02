@@ -1,6 +1,6 @@
-diff -Nru a/conversion/__init__.py b/conversion/__init__.py
---- a/conversion/__init__.py	2026-08-19 20:48:09.000000000 +0200
-+++ b/conversion/__init__.py	2026-08-21 03:04:52.076283304 +0200
+diff -ruN --no-dereference a/conversion/__init__.py b/conversion/__init__.py
+--- a/conversion/__init__.py
++++ b/conversion/__init__.py
 @@ -20,6 +20,8 @@
      "AfmoeForCausalLM": "afmoe",
      "LagunaForCausalLM": "laguna",
@@ -10,7 +10,7 @@ diff -Nru a/conversion/__init__.py b/conversion/__init__.py
      "ArceeForCausalLM": "llama",
      "ArcticForCausalLM": "arctic",
      "AudioFlamingo3ForConditionalGeneration": "qwen",
-@@ -274,6 +276,7 @@
+@@ -279,6 +281,7 @@
  
  
  MMPROJ_MODEL_MAP: dict[str, str] = {
@@ -18,9 +18,9 @@ diff -Nru a/conversion/__init__.py b/conversion/__init__.py
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
      "CogVLMForCausalLM": "cogvlm",
      "DeepseekOCR2ForCausalLM": "deepseek",
-diff -Nru a/conversion/llama.py b/conversion/llama.py
---- a/conversion/llama.py	2026-08-19 20:48:09.000000000 +0200
-+++ b/conversion/llama.py	2026-08-21 03:05:10.156762474 +0200
+diff -ruN --no-dereference a/conversion/llama.py b/conversion/llama.py
+--- a/conversion/llama.py
++++ b/conversion/llama.py
 @@ -11,7 +11,7 @@
  if TYPE_CHECKING:
      from torch import Tensor
@@ -181,9 +181,9 @@ diff -Nru a/conversion/llama.py b/conversion/llama.py
 +        if name == "model.audio_tokenizer.quantizer.codebook.embed":
 +            yield "a.codebook.weight", data_torch
 +            return
-diff -Nru a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
---- a/gguf-py/gguf/constants.py	2026-08-19 20:48:09.000000000 +0200
-+++ b/gguf-py/gguf/constants.py	2026-08-21 03:04:52.077322875 +0200
+diff -ruN --no-dereference a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
+--- a/gguf-py/gguf/constants.py
++++ b/gguf-py/gguf/constants.py
 @@ -103,6 +103,7 @@
  
      class LLM:
@@ -192,7 +192,7 @@ diff -Nru a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
          CONTEXT_LENGTH                    = "{arch}.context_length"
          EMBEDDING_LENGTH                  = "{arch}.embedding_length"
          EMBEDDING_LENGTH_OUT              = "{arch}.embedding_length_out"
-@@ -370,6 +371,13 @@
+@@ -375,6 +376,13 @@
          WINDOW_SIZE           = "clip.vision.window_size"
          FEATURE_LAYERS        = "clip.vision.feature_layer" # Granite4 Vision
          IMAGE_GRID_PINPOINTS  = "clip.vision.image_grid_pinpoints" # Granite4 Vision
@@ -206,7 +206,7 @@ diff -Nru a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
  
          class Attention:
              HEAD_COUNT      = "clip.vision.attention.head_count"
-@@ -406,6 +414,15 @@
+@@ -411,6 +419,15 @@
          WINDOW_SIZE         = "clip.audio.window_size"
          LOCAL_BLOCK_COUNT   = "clip.audio.local_block_count" # mimo-v2.5: input_local_transformer layer count
          LOCAL_GROUP_SIZE    = "clip.audio.local_group_size"  # mimo-v2.5: input_local_transformer grouping size
@@ -222,7 +222,7 @@ diff -Nru a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
  
          class Attention:
              HEAD_COUNT      = "clip.audio.attention.head_count"
-@@ -5474,6 +5491,8 @@
+@@ -5536,6 +5553,8 @@
      MIMO_AUDIO     = "mimo_audio"
      GRANITE4_VISION = "granite4_vision"
      MUSE_GLIMMER   = "muse-glimmer"
@@ -231,9 +231,9 @@ diff -Nru a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
  
  
  # Items here are (block size, type size)
-diff -Nru a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
---- a/gguf-py/gguf/gguf_writer.py	2026-08-19 20:48:09.000000000 +0200
-+++ b/gguf-py/gguf/gguf_writer.py	2026-08-21 03:04:52.077764880 +0200
+diff -ruN --no-dereference a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
+--- a/gguf-py/gguf/gguf_writer.py
++++ b/gguf-py/gguf/gguf_writer.py
 @@ -683,6 +683,9 @@
      def add_vocab_size(self, size: int) -> None:
          self.add_uint32(Keys.LLM.VOCAB_SIZE.format(arch=self.arch), size)
@@ -244,7 +244,7 @@ diff -Nru a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
      def add_context_length(self, length: int) -> None:
          self.add_uint32(Keys.LLM.CONTEXT_LENGTH.format(arch=self.arch), length)
  
-@@ -1371,6 +1374,27 @@
+@@ -1386,6 +1389,27 @@
      def add_vision_image_grid_pinpoints(self, layers: Sequence[Sequence[int]]) -> None:
          self.add_array(Keys.ClipVision.IMAGE_GRID_PINPOINTS, layers)
  
@@ -272,7 +272,7 @@ diff -Nru a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
      def add_vision_sam_layers_count(self, value: int) -> None:
          self.add_uint32(Keys.ClipVision.SAM.BLOCK_COUNT, value)
  
-@@ -1403,6 +1427,33 @@
+@@ -1418,6 +1442,33 @@
      def add_audio_attention_layernorm_eps(self, value: float) -> None:
          self.add_float32(Keys.ClipAudio.Attention.LAYERNORM_EPS, value)
  
@@ -306,9 +306,9 @@ diff -Nru a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
      def add_audio_num_mel_bins(self, value: int) -> None:
          self.add_uint32(Keys.ClipAudio.NUM_MEL_BINS, value)
  
-diff -Nru a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swiss-ai-Apertus-v1.5.jinja
---- a/models/templates/swiss-ai-Apertus-v1.5.jinja	1970-01-01 01:00:00.000000000 +0100
-+++ b/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-08-21 02:54:30.086779452 +0200
+diff -ruN --no-dereference a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swiss-ai-Apertus-v1.5.jinja
+--- a/models/templates/swiss-ai-Apertus-v1.5.jinja
++++ b/models/templates/swiss-ai-Apertus-v1.5.jinja
 @@ -0,0 +1,365 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
@@ -675,10 +675,10 @@ diff -Nru a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swis
 +{%- if add_generation_prompt -%}
 +    {{ assistant_token }}
 +{%- endif -%}
-diff -Nru a/src/llama-arch.cpp b/src/llama-arch.cpp
---- a/src/llama-arch.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/src/llama-arch.cpp	2026-08-21 03:05:10.161564521 +0200
-@@ -183,6 +183,7 @@
+diff -ruN --no-dereference a/src/llama-arch.cpp b/src/llama-arch.cpp
+--- a/src/llama-arch.cpp
++++ b/src/llama-arch.cpp
+@@ -184,6 +184,7 @@
      { LLM_KV_GENERAL_SOURCE_HF_REPO,           "general.source.huggingface.repository" },
  
      { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
@@ -686,7 +686,7 @@ diff -Nru a/src/llama-arch.cpp b/src/llama-arch.cpp
      { LLM_KV_CONTEXT_LENGTH,                    "%s.context_length"                    },
      { LLM_KV_EMBEDDING_LENGTH,                  "%s.embedding_length"                  },
      { LLM_KV_EMBEDDING_LENGTH_OUT,              "%s.embedding_length_out"              },
-@@ -1040,6 +1041,7 @@
+@@ -1047,6 +1048,7 @@
  
  bool llm_arch_supports_sm_tensor(const llm_arch & arch) {
      switch (arch) {
@@ -694,10 +694,10 @@ diff -Nru a/src/llama-arch.cpp b/src/llama-arch.cpp
          case LLM_ARCH_GROK:
          case LLM_ARCH_MPT:
          case LLM_ARCH_PLAMO2:
-diff -Nru a/src/llama-arch.h b/src/llama-arch.h
---- a/src/llama-arch.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/src/llama-arch.h	2026-08-21 03:04:52.075639407 +0200
-@@ -188,6 +188,7 @@
+diff -ruN --no-dereference a/src/llama-arch.h b/src/llama-arch.h
+--- a/src/llama-arch.h
++++ b/src/llama-arch.h
+@@ -189,6 +189,7 @@
      LLM_KV_GENERAL_SOURCE_HF_REPO,
  
      LLM_KV_VOCAB_SIZE,
@@ -705,10 +705,10 @@ diff -Nru a/src/llama-arch.h b/src/llama-arch.h
      LLM_KV_CONTEXT_LENGTH,
      LLM_KV_EMBEDDING_LENGTH,
      LLM_KV_EMBEDDING_LENGTH_OUT,
-diff -Nru a/src/llama-hparams.h b/src/llama-hparams.h
---- a/src/llama-hparams.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/src/llama-hparams.h	2026-08-21 03:04:52.075963230 +0200
-@@ -218,6 +218,9 @@
+diff -ruN --no-dereference a/src/llama-hparams.h b/src/llama-hparams.h
+--- a/src/llama-hparams.h
++++ b/src/llama-hparams.h
+@@ -223,6 +223,9 @@
      // output embedding dimension (0 = use n_embd)
      uint32_t n_embd_out_impl = 0;
  
@@ -718,10 +718,10 @@ diff -Nru a/src/llama-hparams.h b/src/llama-hparams.h
      // llama4 smallthinker
      uint32_t n_moe_layer_step        = 0;
      uint32_t n_no_rope_layer_step    = 4;
-diff -Nru a/src/llama-model.cpp b/src/llama-model.cpp
---- a/src/llama-model.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/src/llama-model.cpp	2026-08-21 03:04:52.076131382 +0200
-@@ -1107,6 +1107,7 @@
+diff -ruN --no-dereference a/src/llama-model.cpp b/src/llama-model.cpp
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1199,6 +1199,7 @@
      }
  
      ml.get_key(LLM_KV_CONTEXT_LENGTH,          hparams.n_ctx_train);
@@ -729,9 +729,9 @@ diff -Nru a/src/llama-model.cpp b/src/llama-model.cpp
      ml.get_key(LLM_KV_EMBEDDING_LENGTH,        hparams.n_embd);
      ml.get_key(LLM_KV_EMBEDDING_LENGTH_OUT,    hparams.n_embd_out_impl, false);
      ml.get_key(LLM_KV_ATTENTION_CAUSAL,        hparams.causal_attn,     false);
-diff -Nru a/src/models/apertus.cpp b/src/models/apertus.cpp
---- a/src/models/apertus.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/src/models/apertus.cpp	2026-08-21 03:04:52.075561506 +0200
+diff -ruN --no-dereference a/src/models/apertus.cpp b/src/models/apertus.cpp
+--- a/src/models/apertus.cpp
++++ b/src/models/apertus.cpp
 @@ -1,4 +1,5 @@
  #include "models.h"
 +#include <float.h>
@@ -782,9 +782,9 @@ diff -Nru a/src/models/apertus.cpp b/src/models/apertus.cpp
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  
-diff -Nru a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
---- a/tools/mtmd/CMakeLists.txt	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/CMakeLists.txt	2026-08-21 03:04:52.078403977 +0200
+diff -ruN --no-dereference a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
+--- a/tools/mtmd/CMakeLists.txt
++++ b/tools/mtmd/CMakeLists.txt
 @@ -29,6 +29,8 @@
              clip-graph.h
              models/models.h
@@ -792,11 +792,11 @@ diff -Nru a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
 +            models/apertus-vision.cpp
 +            models/apertus-audio.cpp
              models/conformer.cpp
+             models/dots3note.cpp
              models/dotsocr.cpp
-             models/exaone4_5.cpp
-diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
---- a/tools/mtmd/clip-impl.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/clip-impl.h	2026-08-21 03:04:52.078045363 +0200
+diff -ruN --no-dereference a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
+--- a/tools/mtmd/clip-impl.h
++++ b/tools/mtmd/clip-impl.h
 @@ -52,6 +52,13 @@
  #define KEY_IMAGE_SIZE              "clip.vision.image_size"
  #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
@@ -811,7 +811,7 @@ diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
  #define KEY_PREPROC_MIN_TILES       "clip.vision.preproc_min_tiles"
  #define KEY_PREPROC_MAX_TILES       "clip.vision.preproc_max_tiles"
  #define KEY_PREPROC_IMAGE_SIZE      "clip.vision.preproc_image_size"
-@@ -87,6 +94,15 @@
+@@ -88,6 +95,15 @@
  #define KEY_A_PROJ_HEAD_COUNT      "clip.audio.projector.head_count"
  #define KEY_A_RVQ_NUM_QUANTIZERS   "clip.audio.rvq.num_quantizers"   // mimo-audio-tokenizer
  #define KEY_A_RVQ_CODEBOOK_SIZE    "clip.audio.rvq.codebook_size"    // mimo-audio-tokenizer: per-quantizer bin count
@@ -827,7 +827,7 @@ diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
  #define KEY_A_WA_PATTERN_MODE      "clip.audio.wa_pattern_mode"      // mimo-audio-tokenizer, per-layer -1 (full) / 0 (windowed)
  #define KEY_A_ATTN_WINDOW_SIZE     "clip.audio.window_size"          // mimo-audio-tokenizer: sliding-window radius
  #define KEY_A_LOCAL_BLOCK_COUNT    "clip.audio.local_block_count"    // mimo-v2.5: input_local_transformer layer count
-@@ -433,6 +449,22 @@
+@@ -438,6 +454,22 @@
  // TODO: improve this later
  struct clip_ctx;
  
@@ -850,7 +850,7 @@ diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
  enum projector_type {
      PROJECTOR_TYPE_MLP,
      PROJECTOR_TYPE_MLP_NORM,
-@@ -493,6 +525,8 @@
+@@ -500,6 +532,8 @@
      PROJECTOR_TYPE_POCKETTTS_SPKENC,
      PROJECTOR_TYPE_POCKETTTS_GEN,
      PROJECTOR_TYPE_MUSE_GLIMMER,
@@ -859,7 +859,7 @@ diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
      PROJECTOR_TYPE_UNKNOWN,
  };
  
-@@ -555,6 +589,8 @@
+@@ -564,6 +598,8 @@
      { PROJECTOR_TYPE_POCKETTTS_SPKENC,  "pockettts_spkenc"},
      { PROJECTOR_TYPE_POCKETTTS_GEN,     "pockettts_gen"},
      { PROJECTOR_TYPE_MUSE_GLIMMER,      "muse-glimmer"},
@@ -868,10 +868,10 @@ diff -Nru a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
  };
  
  static projector_type clip_projector_type_from_string(const std::string & str) {
-diff -Nru a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
---- a/tools/mtmd/clip-model.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/clip-model.h	2026-08-21 03:04:52.078271246 +0200
-@@ -114,6 +114,19 @@
+diff -ruN --no-dereference a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
+--- a/tools/mtmd/clip-model.h
++++ b/tools/mtmd/clip-model.h
+@@ -115,6 +115,19 @@
      int32_t muse_glimmer_patch_temporal = 0;
      int32_t muse_glimmer_sparse_factor  = 0;
  
@@ -891,7 +891,7 @@ diff -Nru a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
      // audio
      int32_t n_mel_bins = 0; // whisper preprocessor
      int32_t proj_stack_factor = 0; // ultravox
-@@ -540,6 +553,57 @@
+@@ -548,6 +561,57 @@
      ggml_tensor * dac_post_conv_b      = nullptr;
  };
  
@@ -949,7 +949,7 @@ diff -Nru a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
  struct clip_model {
      clip_modality modality = CLIP_MODALITY_VISION;
      projector_type proj_type = PROJECTOR_TYPE_MLP;
-@@ -554,6 +618,27 @@
+@@ -562,6 +626,27 @@
      ggml_tensor * norm_embd_w = nullptr;
      ggml_tensor * norm_embd_b = nullptr;
  
@@ -977,9 +977,9 @@ diff -Nru a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
      // "indexed" patch embedding norms
      ggml_tensor * patch_norm_1_w = nullptr;
      ggml_tensor * patch_norm_1_b = nullptr;
-diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
---- a/tools/mtmd/clip.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/clip.cpp	2026-08-21 03:13:11.725002308 +0200
+diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
+--- a/tools/mtmd/clip.cpp
++++ b/tools/mtmd/clip.cpp
 @@ -174,6 +174,9 @@
  
      bool support_batch = false;
@@ -990,7 +990,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
      // for audio gen, reseeded only when the caller asks for another seed
      std::mt19937 rng{std::random_device{}()};
      uint32_t rng_seed = UINT32_MAX;
-@@ -222,8 +225,10 @@
+@@ -221,8 +224,10 @@
              ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), 8192, false, true)
          );
  
@@ -1003,7 +1003,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          }
  
          debug_output_embeddings = std::getenv("MTMD_DEBUG_EMBEDDINGS") != nullptr;
-@@ -240,6 +245,21 @@
+@@ -239,6 +244,21 @@
      projector_type proj_type() const {
          return model.proj_type;
      }
@@ -1025,7 +1025,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  };
  
  //
-@@ -962,6 +982,14 @@
+@@ -992,6 +1012,14 @@
              {
                  builder = std::make_unique<clip_graph_muse_glimmer>(ctx, img);
              } break;
@@ -1040,7 +1040,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              {
                  builder = std::make_unique<clip_graph_step3vl>(ctx, img);
-@@ -1614,6 +1642,22 @@
+@@ -1663,6 +1691,22 @@
                          hparams.set_limit_image_tokens(1, 4096);
                          hparams.set_warmup_n_tokens(32*32);
                      } break;
@@ -1063,7 +1063,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
                  case PROJECTOR_TYPE_MIMOVL:
                      {
                          hparams.n_merge = 2; // spatial_merge_size
-@@ -1885,6 +1929,20 @@
+@@ -1935,6 +1979,20 @@
                          hparams.eps               = 1e-6f;
                          hparams.n_mel_bins        = 640;
                      } break;
@@ -1084,7 +1084,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
                  case PROJECTOR_TYPE_GRANITE_SPEECH:
                      {
                          hparams.audio_chunk_len        = 0;
-@@ -2001,7 +2059,8 @@
+@@ -2051,7 +2109,8 @@
                  // checks below do not apply to it.
                  // pocket-tts is encoder-free in the same sense: mimi convolves the raw waveform
                  const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
@@ -1094,7 +1094,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
                  // Validate audio hparams loaded from GGUF metadata
                  if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-@@ -2161,7 +2220,9 @@
+@@ -2211,7 +2270,9 @@
          const bool has_standard_layers = (
              model.proj_type != PROJECTOR_TYPE_GEMMA3NV &&
              model.proj_type != PROJECTOR_TYPE_QWEN3TTS_SPKENC &&
@@ -1105,7 +1105,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
          // layers
          const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
-@@ -3461,6 +3522,109 @@
+@@ -3537,6 +3598,109 @@
                      }
  
                  } break;
@@ -1215,7 +1215,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
              default:
                  GGML_ASSERT(false && "unknown projector type");
          }
-@@ -3551,7 +3715,8 @@
+@@ -3627,7 +3791,8 @@
          } else {
              // GEMMA4UA uses n_mel_bins as a raw-waveform frame size (640), not a mel-bin count,
              // so the [1, 256] bound only applies to FFT-based models.
@@ -1225,7 +1225,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
              if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
                  throw std::runtime_error(string_format("%s: invalid n_mel_bins (%d), must be in [1, 256]\n", __func__, hparams.n_mel_bins));
              }
-@@ -3930,6 +4095,8 @@
+@@ -4006,6 +4171,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->nx() / params.patch_size) / 2;
@@ -1234,7 +1234,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              return img->nx() / (params.patch_size * params.n_merge);
          case PROJECTOR_TYPE_DEEPSEEKOCR:
-@@ -3956,6 +4123,8 @@
+@@ -4032,6 +4199,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->ny() / params.patch_size) / 2;
@@ -1243,7 +1243,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              return img->ny() / (params.patch_size * params.n_merge);
          default:
-@@ -4251,6 +4420,15 @@
+@@ -4333,6 +4502,15 @@
                      n_patches += h * (w + 1);
                  }
              } break;
@@ -1259,7 +1259,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          default:
              GGML_ABORT("unsupported projector type");
      }
-@@ -4258,19 +4436,21 @@
+@@ -4340,19 +4518,21 @@
      return n_patches;
  }
  
@@ -1284,7 +1284,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
      return clip_encode(ctx, &params);
  }
-@@ -4288,6 +4468,16 @@
+@@ -4370,6 +4550,16 @@
      const clip_image_f32_batch & imgs = *params->imgs;
      int n_batch_cur = imgs.entries.size();
  
@@ -1301,7 +1301,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
      // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
      if (!ctx->support_batch && n_batch_cur > clip_model_n_temporal_merge(ctx)) {
          LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, clip_model_n_temporal_merge(ctx));
-@@ -4450,6 +4640,11 @@
+@@ -4532,6 +4722,11 @@
  
      // set input per projector
      switch (ctx->model.proj_type) {
@@ -1313,7 +1313,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              {
                  const int grid_w = pos_w;            // image_size_width  / patch_size
-@@ -5560,8 +5755,39 @@
+@@ -5653,8 +5848,39 @@
          return false;
      }
  
@@ -1354,7 +1354,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
      if (embeddings != nullptr) {
          // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
-@@ -5799,11 +6025,19 @@
+@@ -5894,11 +6120,19 @@
              return ctx->model.gen_input_lin_w->ne[1];
          case PROJECTOR_TYPE_PARAKEET:
              return ctx->model.mm_1_w->ne[1];
@@ -1374,10 +1374,10 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  bool clip_is_llava(const struct clip_ctx * ctx) {
      return ctx->model.hparams.has_llava_projector;
  }
-diff -Nru a/tools/mtmd/clip.h b/tools/mtmd/clip.h
---- a/tools/mtmd/clip.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/clip.h	2026-08-21 03:07:23.093771654 +0200
-@@ -83,8 +83,8 @@
+diff -ruN --no-dereference a/tools/mtmd/clip.h b/tools/mtmd/clip.h
+--- a/tools/mtmd/clip.h
++++ b/tools/mtmd/clip.h
+@@ -84,8 +84,8 @@
  int clip_n_mmproj_embd(const struct clip_ctx * ctx);
  
  // TODO: remove clip_image_encode() and always use batched version
@@ -1388,7 +1388,7 @@ diff -Nru a/tools/mtmd/clip.h b/tools/mtmd/clip.h
  
  enum clip_gen_process_type {
      CLIP_GEN_PROCESS_GEN_UNKNOWN,
-@@ -95,6 +95,7 @@
+@@ -96,6 +96,7 @@
      int n_threads = 1;
      const clip_image_f32_batch * imgs = nullptr;
      std::vector<float> * out_embd = nullptr;
@@ -1396,7 +1396,7 @@ diff -Nru a/tools/mtmd/clip.h b/tools/mtmd/clip.h
  
      // for audio gen, imgs has exactly one entry: hidden state from backbone (GEN_CODE) or unused (GEN_WAV)
      clip_gen_process_type gen_process = CLIP_GEN_PROCESS_GEN_UNKNOWN;
-@@ -124,6 +125,7 @@
+@@ -125,6 +126,7 @@
  
  bool clip_has_vision_encoder(const struct clip_ctx * ctx);
  bool clip_has_audio_encoder(const struct clip_ctx * ctx);
@@ -1404,9 +1404,9 @@ diff -Nru a/tools/mtmd/clip.h b/tools/mtmd/clip.h
  
  bool clip_support_batch(const struct clip_ctx * ctx);
  
-diff -Nru a/tools/mtmd/models/apertus-audio.cpp b/tools/mtmd/models/apertus-audio.cpp
---- a/tools/mtmd/models/apertus-audio.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/tools/mtmd/models/apertus-audio.cpp	2026-08-21 02:54:30.100487436 +0200
+diff -ruN --no-dereference a/tools/mtmd/models/apertus-audio.cpp b/tools/mtmd/models/apertus-audio.cpp
+--- a/tools/mtmd/models/apertus-audio.cpp
++++ b/tools/mtmd/models/apertus-audio.cpp
 @@ -0,0 +1,210 @@
 +#include "models.h"
 +
@@ -1618,9 +1618,9 @@ diff -Nru a/tools/mtmd/models/apertus-audio.cpp b/tools/mtmd/models/apertus-audi
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
-diff -Nru a/tools/mtmd/models/apertus-vision.cpp b/tools/mtmd/models/apertus-vision.cpp
---- a/tools/mtmd/models/apertus-vision.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/tools/mtmd/models/apertus-vision.cpp	2026-08-21 02:54:30.100648497 +0200
+diff -ruN --no-dereference a/tools/mtmd/models/apertus-vision.cpp b/tools/mtmd/models/apertus-vision.cpp
+--- a/tools/mtmd/models/apertus-vision.cpp
++++ b/tools/mtmd/models/apertus-vision.cpp
 @@ -0,0 +1,158 @@
 +#include "models.h"
 +
@@ -1780,10 +1780,10 @@ diff -Nru a/tools/mtmd/models/apertus-vision.cpp b/tools/mtmd/models/apertus-vis
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
-diff -Nru a/tools/mtmd/models/models.h b/tools/mtmd/models/models.h
---- a/tools/mtmd/models/models.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/models/models.h	2026-08-21 03:04:52.078347527 +0200
-@@ -429,3 +429,13 @@
+diff -ruN --no-dereference a/tools/mtmd/models/models.h b/tools/mtmd/models/models.h
+--- a/tools/mtmd/models/models.h
++++ b/tools/mtmd/models/models.h
+@@ -434,3 +434,13 @@
      clip_graph_muse_glimmer(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
      ggml_cgraph * build() override;
  };
@@ -1797,10 +1797,10 @@ diff -Nru a/tools/mtmd/models/models.h b/tools/mtmd/models/models.h
 +    clip_graph_apertus_audio(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
-diff -Nru a/tools/mtmd/mtmd-audio.cpp b/tools/mtmd/mtmd-audio.cpp
---- a/tools/mtmd/mtmd-audio.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-audio.cpp	2026-08-21 03:11:36.513852193 +0200
-@@ -1321,6 +1321,45 @@
+diff -ruN --no-dereference a/tools/mtmd/mtmd-audio.cpp b/tools/mtmd/mtmd-audio.cpp
+--- a/tools/mtmd/mtmd-audio.cpp
++++ b/tools/mtmd/mtmd-audio.cpp
+@@ -1415,6 +1415,45 @@
  }
  
  //
@@ -1846,9 +1846,9 @@ diff -Nru a/tools/mtmd/mtmd-audio.cpp b/tools/mtmd/mtmd-audio.cpp
  // mtmd_audio_streaming_istft implementation
  //
  
-diff -Nru a/tools/mtmd/mtmd-audio.h b/tools/mtmd/mtmd-audio.h
---- a/tools/mtmd/mtmd-audio.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-audio.h	2026-08-21 03:11:30.337404262 +0200
+diff -ruN --no-dereference a/tools/mtmd/mtmd-audio.h b/tools/mtmd/mtmd-audio.h
+--- a/tools/mtmd/mtmd-audio.h
++++ b/tools/mtmd/mtmd-audio.h
 @@ -102,6 +102,14 @@
      bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) override;
  };
@@ -1864,10 +1864,10 @@ diff -Nru a/tools/mtmd/mtmd-audio.h b/tools/mtmd/mtmd-audio.h
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
      mtmd_audio_preprocessor_qwen3a(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
      void initialize() override;
-diff -Nru a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
---- a/tools/mtmd/mtmd-helper.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-helper.cpp	2026-08-21 03:10:54.492237999 +0200
-@@ -194,6 +194,60 @@
+diff -ruN --no-dereference a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
+--- a/tools/mtmd/mtmd-helper.cpp
++++ b/tools/mtmd/mtmd-helper.cpp
+@@ -199,6 +199,60 @@
      return 0;
  }
  
@@ -1928,7 +1928,7 @@ diff -Nru a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
  int32_t mtmd_helper_eval_chunk_single(mtmd_context * ctx,
          struct llama_context * lctx,
          const mtmd_input_chunk * chunk,
-@@ -252,8 +306,16 @@
+@@ -257,8 +311,16 @@
  
          LOG_INF("%s slice encoded in %" PRId64 " ms\n", name, ggml_time_ms() - t0);
  
@@ -1947,10 +1947,10 @@ diff -Nru a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
          if (ret != 0) {
              LOG_ERR("failed to decode %s\n", name);
              llama_batch_free(text_batch);
-diff -Nru a/tools/mtmd/mtmd-helper.h b/tools/mtmd/mtmd-helper.h
---- a/tools/mtmd/mtmd-helper.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-helper.h	2026-08-21 03:10:39.146253424 +0200
-@@ -107,6 +107,18 @@
+diff -ruN --no-dereference a/tools/mtmd/mtmd-helper.h b/tools/mtmd/mtmd-helper.h
+--- a/tools/mtmd/mtmd-helper.h
++++ b/tools/mtmd/mtmd-helper.h
+@@ -108,6 +108,18 @@
                                                  mtmd_helper_post_decode_callback callback,
                                                  void * user_data);
  
@@ -1969,10 +1969,10 @@ diff -Nru a/tools/mtmd/mtmd-helper.h b/tools/mtmd/mtmd-helper.h
  //
  // video input helpers (requires ffmpeg/ffprobe installed on the system)
  // the notion of video only exists at the helper level, it is not visible to the core mtmd library
-diff -Nru a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.cpp
---- a/tools/mtmd/mtmd-image.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-image.cpp	2026-08-21 03:13:11.726648594 +0200
-@@ -948,6 +948,69 @@
+diff -ruN --no-dereference a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.cpp
+--- a/tools/mtmd/mtmd-image.cpp
++++ b/tools/mtmd/mtmd-image.cpp
+@@ -786,6 +786,69 @@
      return output;
  }
  
@@ -2042,9 +2042,9 @@ diff -Nru a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.cpp
  //
  // mtmd_image_preprocessor_longest_edge
  //
-diff -Nru a/tools/mtmd/mtmd-image.h b/tools/mtmd/mtmd-image.h
---- a/tools/mtmd/mtmd-image.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd-image.h	2026-08-21 03:10:59.305343086 +0200
+diff -ruN --no-dereference a/tools/mtmd/mtmd-image.h b/tools/mtmd/mtmd-image.h
+--- a/tools/mtmd/mtmd-image.h
++++ b/tools/mtmd/mtmd-image.h
 @@ -118,6 +118,22 @@
  // resize image to multiple of patch_size*n_merge, while preserving aspect ratio
  // if image_resize_pad is true, the resized image will be padded, otherwise it will be either stretched or center-cropped depending on image_resize_pad
@@ -2068,9 +2068,9 @@ diff -Nru a/tools/mtmd/mtmd-image.h b/tools/mtmd/mtmd-image.h
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
      mtmd_image_preprocessor_dyn_size(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
      mtmd_image_preproc_out preprocess(const clip_image_u8 & img) override;
-diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
---- a/tools/mtmd/mtmd.cpp	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd.cpp	2026-08-21 03:10:21.492156730 +0200
+diff -ruN --no-dereference a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
+--- a/tools/mtmd/mtmd.cpp
++++ b/tools/mtmd/mtmd.cpp
 @@ -27,7 +27,7 @@
  #include <vector>
  
@@ -2158,7 +2158,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
      int32_t n_tokens() const {
          int32_t n = 0;
-@@ -477,6 +512,7 @@
+@@ -478,6 +513,7 @@
      struct clip_ctx * ctx_v; // vision
      struct clip_ctx * ctx_a; // audio
      std::vector<float> out_embd; // image embedding vector
@@ -2166,7 +2166,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
  
      // generation context
      struct clip_ctx * ctx_gen_a; // audio
-@@ -583,8 +619,8 @@
+@@ -585,8 +621,8 @@
              throw std::runtime_error(string_format("Failed to load CLIP model from %s\n", mmproj_fname));
          }
  
@@ -2177,7 +2177,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
              int n_embd_v = clip_n_mmproj_embd(ctx_v);
              int n_embd_a = clip_n_mmproj_embd(ctx_a);
              if (n_embd_v != n_embd_a) {
-@@ -594,8 +630,9 @@
+@@ -596,8 +632,9 @@
              }
          }
  
@@ -2189,7 +2189,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
          int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
          if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
              throw std::runtime_error(string_format(
-@@ -603,6 +640,7 @@
+@@ -605,6 +642,7 @@
                  "hint: you may be using wrong mmproj\n",
                  n_embd_text, n_embd_clip));
          }
@@ -2197,7 +2197,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
          if (ctx_gen_a) {
              int n_embd_gen = clip_n_mmproj_embd(ctx_gen_a);
              if (n_embd_text > 0 && n_embd_text != n_embd_gen) {
-@@ -704,6 +742,10 @@
+@@ -706,6 +744,10 @@
                      img_end = "]<]end of image[>[";
                      image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(ctx_v);
                  } break;
@@ -2208,7 +2208,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
              case PROJECTOR_TYPE_MUSE_GLIMMER:
                  {
                      img_beg = "<|image_start|>";
-@@ -988,6 +1030,12 @@
+@@ -998,6 +1040,12 @@
                  {
                      audio_preproc = std::make_unique<mtmd_audio_preprocessor_pockettts>(ctx_a);
                  } break;
@@ -2221,7 +2221,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
              default:
                  throw std::runtime_error(string_format("%s: unexpected audio projector type %d\n", __func__, proj));
          }
-@@ -1464,6 +1512,26 @@
+@@ -1474,6 +1522,26 @@
                      image_tokens->nx = n_tokens;
                      image_tokens->ny = 1;
                  }
@@ -2248,7 +2248,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
                  image_tokens->pos = ctx->pos_type;
                  // HunyuanVL wraps the image grid with BOI/EOI and adds one newline per row,
                  // and uses XD-RoPE (dim-3 = image index). Override the position type so that
-@@ -1698,7 +1766,8 @@
+@@ -1708,7 +1776,8 @@
      }
  }
  
@@ -2258,7 +2258,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      clip_ctx * ctx_clip = ctx->ctx_v;
      if (!ctx_clip) {
          LOG_ERR("%s: this API does not support non-vision input, please use mtmd_encode_chunk instead\n", __func__);
-@@ -1707,7 +1776,11 @@
+@@ -1717,7 +1786,11 @@
  
      int n_embd_out = ctx->n_embd_out();
      auto n_tokens_out = image_tokens->n_tokens();
@@ -2271,7 +2271,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
  
      if (image_tokens->is_placeholder()) {
          LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
-@@ -1718,12 +1791,33 @@
+@@ -1728,12 +1801,33 @@
          ctx_clip,
          ctx->n_threads,
          &image_tokens->batch_f32,
@@ -2307,7 +2307,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      if (chunk->type == MTMD_INPUT_CHUNK_TYPE_TEXT) {
          LOG_WRN("mtmd_encode_chunk has no effect for text chunks\n");
          return 0;
-@@ -1740,7 +1834,7 @@
+@@ -1750,7 +1844,7 @@
              LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
              return 1;
          }
@@ -2316,7 +2316,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      } else if (chunk->type == MTMD_INPUT_CHUNK_TYPE_AUDIO) {
          if (!ctx->ctx_a) {
              LOG_ERR("%s: model does not support audio input\n", __func__);
-@@ -1755,12 +1849,17 @@
+@@ -1765,12 +1859,17 @@
              return 1;
          }
          int n_mmproj_embd = ctx->n_embd_out();
@@ -2336,7 +2336,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
          return ok ? 0 : 1;
      }
  
-@@ -1771,7 +1870,7 @@
+@@ -1781,7 +1880,7 @@
  int32_t mtmd_encode_chunk(mtmd_context * ctx, const mtmd_input_chunk * chunk) {
      // this is the non-batching version
      try {
@@ -2345,7 +2345,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1780,7 +1879,7 @@
+@@ -1790,7 +1889,7 @@
  
  int32_t mtmd_encode(mtmd_context * ctx, const mtmd_image_tokens * image_tokens) {
      try {
@@ -2354,7 +2354,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1788,7 +1887,12 @@
+@@ -1798,7 +1897,12 @@
  }
  
  float * mtmd_get_output_embd(mtmd_context * ctx) {
@@ -2368,7 +2368,7 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
  }
  
  //
-@@ -2061,7 +2165,8 @@
+@@ -2071,7 +2175,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
          batch_chunk.get(),
@@ -2378,10 +2378,10 @@ diff -Nru a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
      return res;
  }
  
-diff -Nru a/tools/mtmd/mtmd.h b/tools/mtmd/mtmd.h
---- a/tools/mtmd/mtmd.h	2026-08-19 20:48:09.000000000 +0200
-+++ b/tools/mtmd/mtmd.h	2026-08-21 03:10:28.448387672 +0200
-@@ -311,6 +311,9 @@
+diff -ruN --no-dereference a/tools/mtmd/mtmd.h b/tools/mtmd/mtmd.h
+--- a/tools/mtmd/mtmd.h
++++ b/tools/mtmd/mtmd.h
+@@ -312,6 +312,9 @@
  // llama_model_n_embd_inp(model) * mtmd_input_chunk_get_n_tokens(chunk) * sizeof(float)
  MTMD_API float * mtmd_get_output_embd(mtmd_context * ctx);
  
