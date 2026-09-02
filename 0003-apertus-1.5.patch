@@ -1047,7 +1047,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
 +                case PROJECTOR_TYPE_APERTUS_VISION:
 +                    {
 +                        hparams.n_merge = 1;
-+                        hparams.image_resize_algo = RESIZE_ALGO_BICUBIC_PILLOW;
++                        hparams.image_resize_algo = RESIZE_ALGO_BICUBIC;
 +                        hparams.image_resize_pad = PAD_NONE;
 +                        get_u32(KEY_IMAGE_MIN_PIXELS, hparams.image_min_pixels);
 +                        get_u32(KEY_IMAGE_MAX_PIXELS, hparams.image_max_pixels);
@@ -2005,7 +2005,7 @@ diff -ruN --no-dereference a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.c
 +        clip_image_size target_size) {
 +    clip_image_u8 resized_image;
 +    img_tool::resize(image, resized_image, target_size,
-+                     RESIZE_ALGO_BICUBIC_PILLOW, PAD_NONE);
++                     RESIZE_ALGO_BICUBIC, PAD_NONE);
 +
 +    std::vector<float> normalized_pixels;
 +    normalized_pixels.reserve(resized_image.n_elements());
