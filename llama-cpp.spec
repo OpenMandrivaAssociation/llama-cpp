@@ -30,7 +30,7 @@
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
 Version:		0.3.0
-Release:		1
+Release:		2
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -98,6 +98,7 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 %patchlist
 0002-export-lora-system-ggml.patch
 0003-apertus-1.5.patch
+0004-apertus-tool-parse.patch
 
 %description
 llama.cpp runs GGUF language (and vision) models. Tensor kernels come
@@ -140,9 +141,11 @@ The server also serves an embedded web UI at http://HOST:PORT/ .
 
 Config: %{_sysconfdir}/sysconfig/llama-server
 
-To test (wait until weights are loaded; /v1/chat/completions returns
-HTTP 503 {"error":{"message":"Loading model"}} until then — a 6–8B
-GGUF on GPU is typically ~1 minute):
+systemctl start returns as soon as llama-server is running. HTTP is
+up immediately; /health and /v1/chat/completions return
+HTTP 503 {"error":{"message":"Loading model"}} until the GGUF is
+in RAM/VRAM (a 6–8B model on GPU is typically ~1 minute, a 20–30G
+Q8 several minutes). Wait on /health before sending completions:
 
 until curl -sf http://localhost:8080/health; do sleep 1; done
 curl http://localhost:8080/v1/chat/completions \
@@ -219,10 +222,10 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=-%{_sysconfdir}/sysconfig/llama-server
 ExecStart=bash -c "exec %{_bindir}/llama-server $${MODEL:+--model $${MODEL}} $${HOST:+--host $${HOST}} $${PORT:+--port $${PORT}} $${API_KEY:+--api_key $${API_KEY}} $${LLAMA_OPTIONS}"
-# HTTP is up before the GGUF is on the GPU; /health is 503 until then.
-# Make "systemctl start" wait so the documented curl does not 503.
-TimeoutStartSec=300
-ExecStartPost=bash -c 'i=0; while [ $$i -lt 240 ]; do curl -sf --max-time 1 "http://$${HOST:-127.0.0.1}:$${PORT:-8080}/health" >/dev/null && exit 0; i=$$((i+1)); sleep 1; done; echo "llama-server did not become ready (check MODEL in %{_sysconfdir}/sysconfig/llama-server)" >&2; exit 1'
+# HTTP is up before the GGUF is in RAM/VRAM; /health stays 503 until
+# then. Do not wait here: a 20–30G model can take many minutes, and a
+# failed ExecStartPost is a failed start — systemd kills the still-
+# loading server and Restart=on-failure loops forever.
 KillMode=process
 Restart=on-failure
 RestartSec=5s
@@ -250,9 +253,10 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 SystemCallArchitectures=native
 RemoveIPC=yes
 
-# /usr /boot /etc read-only; /home /root invisible. Private /tmp.
-# Models: /srv/ai is visible read-only ("-" = skip if missing).
-# Extra trees: drop-in  ReadOnlyPaths=-/other/models
+# ProtectSystem=strict: whole tree read-only (models anywhere except
+# /home and /root are readable). ProtectHome hides /home and /root.
+# Suggested location: /srv/ai. Extra trees if you later hide them:
+#   ReadOnlyPaths=-/other/models
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
@@ -279,10 +283,10 @@ UNIT
 
 cat >%{buildroot}%{_sysconfdir}/sysconfig/llama-server <<'CFG'
 # Point this at a GGUF model (https://huggingface.co/models?library=gguf).
-# The systemd unit hides /home and /root (ProtectHome=yes) and only
-# allows reading models from /srv/ai (ReadOnlyPaths=-/srv/ai; "-"
-# means the unit still starts if that directory is absent). Make the
-# file readable by the service (e.g. chmod 0644). Extra trees: drop-in
+# The systemd unit hides /home and /root (ProtectHome=yes). Models
+# elsewhere are readable (ProtectSystem=strict is read-only, not
+# hidden). Suggested location: /srv/ai. Make the file readable by
+# the service (e.g. chmod 0644). Extra trees if you later hide them:
 #   ReadOnlyPaths=-/other/models
 #MODEL=/srv/ai/model.gguf
 # API_KEY is passed as --api-key. Clients must send
@@ -291,10 +295,13 @@ cat >%{buildroot}%{_sysconfdir}/sysconfig/llama-server <<'CFG'
 #API_KEY=OpenMandriva
 HOST=127.0.0.1
 PORT=8080
-# GPU offload: --n-gpu-layers -1 = all layers.
+# GPU offload: default is --n-gpu-layers auto + --fit on (as many
+# layers as fit in VRAM). --n-gpu-layers -1 is also auto, not "all".
+# Force every layer onto the GPU with --n-gpu-layers all (must fit).
 # List backends/devices:  llama-server --list-devices
-#   (Vulkan0, ROCm0, …). Pick one with --device, e.g. Vulkan:
-# LLAMA_OPTIONS="--n-gpu-layers -1 --device Vulkan0"
+#   (Vulkan0, ROCm0, …). Pick one with --device. The same AMD card
+# may appear as both ROCm0 and Vulkan0 — do not pass both.
+# LLAMA_OPTIONS="--n-gpu-layers auto --device Vulkan0"
 # HIP/ROCm device index: HIP_VISIBLE_DEVICES=0
 # Some GGUFs still embed SwissAI's original Apertus Jinja. llama.cpp's
 # auto-parser cannot compile that (fatal at load). Use the adapted
@@ -304,8 +311,10 @@ PORT=8080
 # (multimodal, 262k ctx). 1.5 chat template:
 #   --jinja --chat-template-file /usr/share/llama-cpp/models/templates/swiss-ai-Apertus-v1.5.jinja
 # Convert HF 1.5 with llama-convert-hf-to-gguf (writes text GGUF + mmproj).
-# After start, /health is HTTP 503 "Loading model" until weights are ready.
-LLAMA_OPTIONS="--n-gpu-layers -1"
+# systemctl start returns immediately. /health is HTTP 503
+# "Loading model" until weights are ready — wait on /health before
+# sending completions (a 20–30G Q8 can take several minutes).
+LLAMA_OPTIONS="--n-gpu-layers auto"
 CFG
 
 mkdir -p %{buildroot}%{_datarootdir}/%{name}

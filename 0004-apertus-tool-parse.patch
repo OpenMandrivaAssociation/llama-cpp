@@ -1,0 +1,202 @@
+Fix Apertus tool parsing so leftover <|tools_suffix|> is not HTTP 500.
+
+The autoparser often drops the section closer. The model then emits
+<|tools_prefix|>[{"name": args}]<|tools_suffix|> and the PEG leftover
+became a 500 ("Stream resume produced no new bytes" in the web UI).
+
+Ignore leftover special-token closers, use section_end when the prefix
+was parked on per_call_start, and recover function-as-key JSON into
+OpenAI tool_calls.
+
+--- a/common/chat.cpp	2026-09-04 04:38:12.061946022 +0200
++++ b/common/chat.cpp	2026-09-04 04:38:12.207547485 +0200
+@@ -15,6 +15,7 @@
+ #include "peg-parser.h"
+ 
+ #include <algorithm>
++#include <cctype>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <ctime>
+@@ -3819,6 +3820,79 @@
+     return common_chat_peg_parse(params.parser, input, is_partial, params);
+ }
+ 
++// Apertus emits <|tools_prefix|>[{"name": args}]<|tools_suffix|>. The generated PEG
++// often leaves the closer unparsed and does not map function-as-key JSON into
++// tool_calls. Recover so the OpenAI API gets structured calls instead of a 500.
++static void recover_apertus_tool_calls(common_chat_msg & msg, const std::string & raw = {}) {
++    if (!msg.tool_calls.empty()) {
++        return;
++    }
++    const std::string & src = !msg.content.empty() ? msg.content : raw;
++    if (src.empty()) {
++        return;
++    }
++    const std::string open  = "<|tools_prefix|>";
++    const std::string close = "<|tools_suffix|>";
++    const auto        start = src.find(open);
++    if (start == std::string::npos) {
++        return;
++    }
++    const auto end = src.find(close, start + open.size());
++    if (end == std::string::npos) {
++        return;
++    }
++    std::string body = src.substr(start + open.size(), end - start - open.size());
++    while (!body.empty() && std::isspace(static_cast<unsigned char>(body.front()))) {
++        body.erase(body.begin());
++    }
++    while (!body.empty() && std::isspace(static_cast<unsigned char>(body.back()))) {
++        body.pop_back();
++    }
++    json parsed;
++    try {
++        parsed = json::parse(body);
++    } catch (...) {
++        return;
++    }
++    if (parsed.is_object()) {
++        parsed = json::array({ parsed });
++    }
++    if (!parsed.is_array()) {
++        return;
++    }
++    for (const auto & item : parsed) {
++        if (!item.is_object()) {
++            continue;
++        }
++        if (item.contains("name")) {
++            common_chat_tool_call tc;
++            tc.name = item.at("name").is_string() ? item.at("name").get<std::string>() : item.at("name").dump();
++            if (item.contains("arguments")) {
++                const auto & args = item.at("arguments");
++                tc.arguments      = args.is_string() ? args.get<std::string>() : args.dump();
++            } else {
++                tc.arguments = "{}";
++            }
++            msg.tool_calls.push_back(std::move(tc));
++            continue;
++        }
++        for (const auto & el : item.items()) {
++            common_chat_tool_call tc;
++            tc.name      = el.key();
++            tc.arguments = el.value().is_string() ? el.value().template get<std::string>() : el.value().dump();
++            msg.tool_calls.push_back(std::move(tc));
++        }
++    }
++    if (msg.tool_calls.empty()) {
++        return;
++    }
++    std::string prefix = src.substr(0, start);
++    while (!prefix.empty() && std::isspace(static_cast<unsigned char>(prefix.back()))) {
++        prefix.pop_back();
++    }
++    msg.content = std::move(prefix);
++}
++
+ common_chat_msg common_chat_peg_parse(const common_peg_arena &          src_parser,
+                                       const std::string &               input,
+                                       bool                              is_partial,
+@@ -3845,10 +3919,38 @@
+     common_peg_parse_context ctx(effective_input, flags);
+     auto result = parser.parse(ctx);
+ 
++    auto leftover_is_closer_tokens = [](const std::string & s) -> bool {
++        // Apertus (and similar) emit a section closer the generated PEG sometimes
++        // does not consume. Leftover `<|tools_suffix|>` must not 500 the server.
++        if (s.empty()) {
++            return false;
++        }
++        size_t i = 0;
++        while (i < s.size()) {
++            while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i]))) {
++                i++;
++            }
++            if (i >= s.size()) {
++                return true;
++            }
++            if (s.compare(i, 2, "<|") != 0) {
++                return false;
++            }
++            const size_t end = s.find("|>", i + 2);
++            if (end == std::string::npos) {
++                return false;
++            }
++            i = end + 2;
++        }
++        return true;
++    };
++
+     if (result.fail()) {
++        const std::string leftover = effective_input.substr(result.end);
++        const bool ignore_closers = leftover_is_closer_tokens(leftover);
+         // During partial parsing, return partial results if any AST nodes were captured
+         // This allows streaming to work correctly for formats like FUNC_MARKDOWN_CODE_BLOCK
+-        if (is_partial && result.end > 0) {
++        if ((is_partial && result.end > 0) || ignore_closers) {
+             // Try to extract any partial results from what was successfully parsed
+             common_chat_msg msg;
+             msg.role = "assistant";
+@@ -3861,6 +3963,7 @@
+                 mapper = std::make_unique<common_chat_peg_mapper>(msg);
+             }
+             mapper->from_ast(ctx.ast, result);
++            recover_apertus_tool_calls(msg, input);
+ 
+             if (ctx.is_debug()) {
+                 fprintf(stderr, "\nAST for partial parse (fail):\n%s\n", ctx.ast.dump().c_str());
+@@ -3868,7 +3971,7 @@
+             }
+             return msg;
+         }
+-        LOG_WRN("%s: unparsed %s output: %s\n", __func__, common_chat_format_name(params.format), effective_input.substr(result.end).c_str());
++        LOG_WRN("%s: unparsed %s output (%zu bytes): %s\n", __func__, common_chat_format_name(params.format), leftover.size(), leftover.c_str());
+         LOG_DBG("%s: full %s output triggering error:\n=== BEGIN ===\n%s\n=== END ===\n", __func__, common_chat_format_name(params.format), effective_input.c_str());
+         throw std::runtime_error(std::string("The model produced output that does not match the expected ") + common_chat_format_name(params.format) + " format");
+     }
+@@ -3885,6 +3988,7 @@
+         mapper = std::make_unique<common_chat_peg_mapper>(msg);
+     }
+     mapper->from_ast(ctx.ast, result);
++    recover_apertus_tool_calls(msg, input);
+ 
+     if (ctx.is_debug()) {
+         fprintf(stderr, "\nAST for %s parse:\n%s\n", is_partial ? "partial" : "full", ctx.ast.dump().c_str());
+--- a/common/chat-auto-parser-generator.cpp	2026-09-04 04:38:12.209947801 +0200
++++ b/common/chat-auto-parser-generator.cpp	2026-09-04 04:38:12.352386758 +0200
+@@ -227,8 +227,14 @@
+ 
+     auto tools_parser = p.eps();
+     if (format.section_start.empty() && !format.per_call_start.empty()) {
++        // Apertus-style: one prefix around an array, one suffix around the
++        // whole section. Analysis often parks the prefix on per_call_start
++        // and the suffix on section_end, then this branch ignored section_end
++        // and left `<|tools_suffix|>` unparsed (HTTP 500).
++        const std::string & closer =
++            !format.per_call_end.empty() ? format.per_call_end : format.section_end;
+         auto single_tool_parser = p.standard_json_tools(
+-            format.per_call_start, format.per_call_end, inputs.tools, inputs.parallel_tool_calls,
++            format.per_call_start, closer, inputs.tools, inputs.parallel_tool_calls,
+             inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED, name_field, args_field, format.tools_array_wrapped,
+             format.fun_name_is_key, format.id_field, format.gen_id_field, format.parameter_order, format.openai_wrapper_trigger);
+         tools_parser = p.trigger_rule("tool-calls", p.one_or_more(single_tool_parser + p.space()));
+--- a/common/chat-diff-analyzer.cpp	2026-09-04 04:38:12.357949579 +0200
++++ b/common/chat-diff-analyzer.cpp	2026-09-04 04:38:12.500216019 +0200
+@@ -1096,6 +1096,16 @@
+         if (calls_one > 0 && calls_one == calls_two) {
+             format.section_end = format.per_call_end;
+             format.per_call_end.clear();
++            // Same count for the opener means it wraps the whole section
++            // (Apertus `<|tools_prefix|>[call, call]<|tools_suffix|>`), not each call.
++            if (!format.per_call_start.empty()) {
++                size_t start_one = count_occurrences(one_vs_two->output_A, format.per_call_start);
++                size_t start_two = count_occurrences(one_vs_two->output_B, format.per_call_start);
++                if (start_one > 0 && start_one == start_two) {
++                    format.section_start = format.per_call_start;
++                    format.per_call_start.clear();
++                }
++            }
+         }
+     }
+ }

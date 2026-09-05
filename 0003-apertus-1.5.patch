@@ -309,7 +309,7 @@ diff -ruN --no-dereference a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_wri
 diff -ruN --no-dereference a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swiss-ai-Apertus-v1.5.jinja
 --- a/models/templates/swiss-ai-Apertus-v1.5.jinja
 +++ b/models/templates/swiss-ai-Apertus-v1.5.jinja
-@@ -0,0 +1,365 @@
+@@ -0,0 +1,374 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
 +        {%- if param_spec['items'] -%}
@@ -451,6 +451,25 @@ diff -ruN --no-dereference a/models/templates/swiss-ai-Apertus-v1.5.jinja b/mode
 +    {%- endfor %}
 +{%- endmacro -%}
 +
++{#- llama.cpp's autoparser probes with arguments={} (falsy in Jinja).
++   Treat missing/empty args as {} instead of raising, or parser generation
++   fails and leftover <|tools_suffix|> leaves the UI on "Processing...". -#}
++{%- macro render_tool_call(tool_call) -%}
++    {%- if tool_call.function -%}
++        {%- set tool_call = tool_call.function -%}
++    {%- endif -%}
++    {%- if tool_call.name is defined and tool_call.name -%}
++        {%- if tool_call.arguments is string -%}
++            {%- set tc_args = tool_call.arguments -%}
++        {%- elif tool_call.arguments is defined and tool_call.arguments -%}
++            {%- set tc_args = tool_call.arguments | tojson -%}
++        {%- else -%}
++            {%- set tc_args = '{}' -%}
++        {%- endif -%}
++        {{- '{"' + tool_call.name + '": ' + tc_args + '}' }}
++    {%- endif -%}
++{%- endmacro -%}
++
 +{{ bos_token }}
 +
 +{%- set system_token = '<|system_start|>' -%}
@@ -586,10 +605,7 @@ diff -ruN --no-dereference a/models/templates/swiss-ai-Apertus-v1.5.jinja b/mode
 +                        {%- endif -%}
 +                        {{ tool_calls_token + '[' }}
 +                        {%- for tool_call in block.calls -%}
-+                            {%- if tool_call.function %}
-+                                {%- set tool_call = tool_call.function %}
-+                            {%- endif %}
-+                            {{- '{"' + tool_call.name + '": ' + (tool_call.arguments if tool_call.arguments is string else tool_call.arguments | tojson) + '}' }}
++                            {{- render_tool_call(tool_call) }}
 +                            {%- if not loop.last -%}
 +                                {{- ", " }}
 +                            {%- endif -%}
@@ -635,16 +651,9 @@ diff -ruN --no-dereference a/models/templates/swiss-ai-Apertus-v1.5.jinja b/mode
 +                {%- if tool_call.type is defined and tool_call.type != 'function' -%}
 +                    {{- raise_exception("Invalid tool call type: " + tool_call.type) -}}
 +                {%- endif -%}
-+                {%- if tool_call.function %}
-+                    {%- set tool_call = tool_call.function %}
-+                {%- endif %}
-+                {%- if tool_call.name and tool_call.arguments -%}
-+                    {{- '{"' + tool_call.name + '": ' + (tool_call.arguments if tool_call.arguments is string else tool_call.arguments | tojson) + '}' }}
-+                    {%- if not loop.last -%}
-+                        {{- ", " }}
-+                    {%- endif -%}
-+                {%- else -%}
-+                    {{- raise_exception("Invalid tool call") -}}
++                {{- render_tool_call(tool_call) }}
++                {%- if not loop.last -%}
++                    {{- ", " }}
 +                {%- endif -%}
 +            {%- endfor -%}
 +            {{ ']' + end_tool_calls_token }}
@@ -844,7 +853,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
 +#define TN_APERTUS_A_CONV          "a.encoder.layers.%d.conv.%s"
 +#define TN_APERTUS_A_RESBLOCK_CONV "a.encoder.layers.%d.block.%d.conv.%s"
 +#define TN_APERTUS_A_SHORTCUT      "a.encoder.layers.%d.shortcut.conv.%s"
-+#define TN_APERTUS_A_LSTM          "a.encoder.layers.13.lstm.%s_l%d"
++#define TN_APERTUS_A_LSTM          "a.encoder.layers.%d.lstm.%s_l%d"
 +#define TN_APERTUS_A_CODEBOOK      "a.codebook.weight"
 +
  enum projector_type {
@@ -980,7 +989,15 @@ diff -ruN --no-dereference a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
 diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
 --- a/tools/mtmd/clip.cpp
 +++ b/tools/mtmd/clip.cpp
-@@ -174,6 +174,9 @@
+@@ -14,6 +14,7 @@
+ #include <cassert>
+ #include <cmath>
+ #include <cstdlib>
++#include <cstdio>
+ #include <cstring>
+ #include <fstream>
+ #include <map>
+@@ -174,6 +175,9 @@
  
      bool support_batch = false;
  
@@ -990,7 +1007,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
      // for audio gen, reseeded only when the caller asks for another seed
      std::mt19937 rng{std::random_device{}()};
      uint32_t rng_seed = UINT32_MAX;
-@@ -221,8 +224,10 @@
+@@ -221,8 +225,10 @@
              ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), 8192, false, true)
          );
  
@@ -1003,7 +1020,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          }
  
          debug_output_embeddings = std::getenv("MTMD_DEBUG_EMBEDDINGS") != nullptr;
-@@ -239,6 +244,21 @@
+@@ -239,6 +245,21 @@
      projector_type proj_type() const {
          return model.proj_type;
      }
@@ -1025,7 +1042,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  };
  
  //
-@@ -992,6 +1012,14 @@
+@@ -992,6 +1013,14 @@
              {
                  builder = std::make_unique<clip_graph_muse_glimmer>(ctx, img);
              } break;
@@ -1040,7 +1057,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              {
                  builder = std::make_unique<clip_graph_step3vl>(ctx, img);
-@@ -1663,6 +1691,22 @@
+@@ -1663,6 +1692,22 @@
                          hparams.set_limit_image_tokens(1, 4096);
                          hparams.set_warmup_n_tokens(32*32);
                      } break;
@@ -1063,7 +1080,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
                  case PROJECTOR_TYPE_MIMOVL:
                      {
                          hparams.n_merge = 2; // spatial_merge_size
-@@ -1935,6 +1979,20 @@
+@@ -1935,6 +1980,20 @@
                          hparams.eps               = 1e-6f;
                          hparams.n_mel_bins        = 640;
                      } break;
@@ -1084,7 +1101,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
                  case PROJECTOR_TYPE_GRANITE_SPEECH:
                      {
                          hparams.audio_chunk_len        = 0;
-@@ -2051,7 +2109,8 @@
+@@ -2051,7 +2110,8 @@
                  // checks below do not apply to it.
                  // pocket-tts is encoder-free in the same sense: mimi convolves the raw waveform
                  const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
@@ -1094,7 +1111,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
                  // Validate audio hparams loaded from GGUF metadata
                  if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-@@ -2211,7 +2270,9 @@
+@@ -2211,7 +2271,9 @@
          const bool has_standard_layers = (
              model.proj_type != PROJECTOR_TYPE_GEMMA3NV &&
              model.proj_type != PROJECTOR_TYPE_QWEN3TTS_SPKENC &&
@@ -1105,35 +1122,41 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
          // layers
          const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
-@@ -3537,6 +3598,109 @@
+@@ -3537,6 +3599,151 @@
                      }
  
                  } break;
 +            case PROJECTOR_TYPE_APERTUS_VISION:
 +                {
++                    // Build the GGUF name with string_format. `stem + ".norm1.weight"`
++                    // was compiled down to a lookup of `stem` alone (clip_init:
++                    // "unable to find tensor v.encoder.down.0.block.0").
++                    auto apertus_tensor = [&](const std::string & stem, const char * leaf, bool required = true) {
++                        return get_tensor(string_format("%s%s", stem.c_str(), leaf), required);
++                    };
 +                    auto load_resblock = [&](apertus_vision_resblock & block, const std::string & stem) {
-+                        block.norm1_w = get_tensor(stem + ".norm1.weight");
-+                        block.norm1_b = get_tensor(stem + ".norm1.bias");
-+                        block.conv1_w = get_tensor(stem + ".conv1.weight");
-+                        block.conv1_b = get_tensor(stem + ".conv1.bias");
-+                        block.norm2_w = get_tensor(stem + ".norm2.weight");
-+                        block.norm2_b = get_tensor(stem + ".norm2.bias");
-+                        block.conv2_w = get_tensor(stem + ".conv2.weight");
-+                        block.conv2_b = get_tensor(stem + ".conv2.bias");
-+                        block.shortcut_w = get_tensor(stem + ".nin_shortcut.weight", false);
-+                        block.shortcut_b = get_tensor(stem + ".nin_shortcut.bias", false);
++                        block.norm1_w = apertus_tensor(stem, ".norm1.weight");
++                        block.norm1_b = apertus_tensor(stem, ".norm1.bias");
++                        block.conv1_w = apertus_tensor(stem, ".conv1.weight");
++                        block.conv1_b = apertus_tensor(stem, ".conv1.bias");
++                        block.norm2_w = apertus_tensor(stem, ".norm2.weight");
++                        block.norm2_b = apertus_tensor(stem, ".norm2.bias");
++                        block.conv2_w = apertus_tensor(stem, ".conv2.weight");
++                        block.conv2_b = apertus_tensor(stem, ".conv2.bias");
++                        block.shortcut_w = apertus_tensor(stem, ".nin_shortcut.weight", false);
++                        block.shortcut_b = apertus_tensor(stem, ".nin_shortcut.bias", false);
 +                    };
 +                    auto load_attention = [&](apertus_vision_attention & attention, const std::string & stem) {
-+                        attention.norm_w = get_tensor(stem + ".norm.weight");
-+                        attention.norm_b = get_tensor(stem + ".norm.bias");
-+                        attention.q_w = get_tensor(stem + ".q.weight");
-+                        attention.q_b = get_tensor(stem + ".q.bias");
-+                        attention.k_w = get_tensor(stem + ".k.weight");
-+                        attention.k_b = get_tensor(stem + ".k.bias");
-+                        attention.v_w = get_tensor(stem + ".v.weight");
-+                        attention.v_b = get_tensor(stem + ".v.bias");
-+                        attention.out_w = get_tensor(stem + ".proj_out.weight");
-+                        attention.out_b = get_tensor(stem + ".proj_out.bias");
++                        attention.norm_w = apertus_tensor(stem, ".norm.weight");
++                        attention.norm_b = apertus_tensor(stem, ".norm.bias");
++                        attention.q_w = apertus_tensor(stem, ".q.weight");
++                        attention.q_b = apertus_tensor(stem, ".q.bias");
++                        attention.k_w = apertus_tensor(stem, ".k.weight");
++                        attention.k_b = apertus_tensor(stem, ".k.bias");
++                        attention.v_w = apertus_tensor(stem, ".v.weight");
++                        attention.v_b = apertus_tensor(stem, ".v.bias");
++                        attention.out_w = apertus_tensor(stem, ".proj_out.weight");
++                        attention.out_b = apertus_tensor(stem, ".proj_out.bias");
 +                    };
 +                    model.apertus_v_conv_in_w = get_tensor(string_format(TN_APERTUS_V_CONV_IN, "weight"));
 +                    model.apertus_v_conv_in_b = get_tensor(string_format(TN_APERTUS_V_CONV_IN, "bias"));
@@ -1178,15 +1201,51 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
 +                } break;
 +            case PROJECTOR_TYPE_APERTUS_AUDIO:
 +                {
-+                    const int conv_layer_ids[] = {0, 2, 4, 6, 8, 10, 12, 14};
-+                    const int resblock_layer_ids[] = {1, 3, 5, 7, 9, 11};
-+                    model.apertus_a_convs.resize(std::size(conv_layer_ids));
++                    // WavTokenizer numbers layers densely in the Python module but
++                    // only some of those indices have parameters (activations are
++                    // skipped). Discover IDs from the GGUF instead of assuming
++                    // 0,2,4,... / 1,3,5,... — official 1.5 is 0,3,6,9,12,15 / 1,4,7,10.
++                    std::vector<int> conv_layer_ids;
++                    std::vector<int> resblock_layer_ids;
++                    int lstm_layer_id = -1;
++                    auto full_match = [](const std::string & name, const char * fmt, int & id) {
++                        int consumed = 0;
++                        if (sscanf(name.c_str(), fmt, &id, &consumed) != 1) {
++                            return false;
++                        }
++                        return consumed == (int) name.size();
++                    };
++                    for (const auto & [name, _] : tensor_offset) {
++                        int id = -1;
++                        if (full_match(name, "a.encoder.layers.%d.conv.weight%n", id)) {
++                            conv_layer_ids.push_back(id);
++                        } else if (full_match(name, "a.encoder.layers.%d.block.1.conv.weight%n", id)) {
++                            resblock_layer_ids.push_back(id);
++                        } else if (full_match(name, "a.encoder.layers.%d.lstm.weight_ih_l0%n", id)) {
++                            lstm_layer_id = id;
++                        }
++                    }
++                    std::sort(conv_layer_ids.begin(), conv_layer_ids.end());
++                    std::sort(resblock_layer_ids.begin(), resblock_layer_ids.end());
++                    if (conv_layer_ids.size() != hparams.audio_downsample_ratios.size() + 2 ||
++                        resblock_layer_ids.size() != hparams.audio_downsample_ratios.size() ||
++                        lstm_layer_id < 0) {
++                        throw std::runtime_error(string_format(
++                            "%s: unexpected Apertus audio encoder layout (convs=%zu resblocks=%zu lstm=%d, expected %zu/%zu)\n",
++                            __func__,
++                            conv_layer_ids.size(),
++                            resblock_layer_ids.size(),
++                            lstm_layer_id,
++                            hparams.audio_downsample_ratios.size() + 2,
++                            hparams.audio_downsample_ratios.size()));
++                    }
++                    model.apertus_a_convs.resize(conv_layer_ids.size());
 +                    for (size_t i = 0; i < model.apertus_a_convs.size(); ++i) {
 +                        auto & conv = model.apertus_a_convs[i];
 +                        conv.w = get_tensor(string_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "weight"));
 +                        conv.b = get_tensor(string_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "bias"));
 +                    }
-+                    model.apertus_a_resblocks.resize(std::size(resblock_layer_ids));
++                    model.apertus_a_resblocks.resize(resblock_layer_ids.size());
 +                    for (size_t i = 0; i < model.apertus_a_resblocks.size(); ++i) {
 +                        const int layer_id = resblock_layer_ids[i];
 +                        auto & block = model.apertus_a_resblocks[i];
@@ -1200,10 +1259,10 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
 +                    model.apertus_a_lstm_layers.resize(hparams.audio_lstm_block_count);
 +                    for (int layer_id = 0; layer_id < hparams.audio_lstm_block_count; ++layer_id) {
 +                        auto & layer = model.apertus_a_lstm_layers[layer_id];
-+                        layer.weight_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, "weight_ih", layer_id));
-+                        layer.weight_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, "weight_hh", layer_id));
-+                        layer.bias_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, "bias_ih", layer_id));
-+                        layer.bias_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, "bias_hh", layer_id));
++                        layer.weight_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_ih", layer_id));
++                        layer.weight_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_hh", layer_id));
++                        layer.bias_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_ih", layer_id));
++                        layer.bias_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_hh", layer_id));
 +                    }
 +                    model.apertus_a_codebook = get_tensor(TN_APERTUS_A_CODEBOOK);
 +                    if (model.apertus_a_codebook->ne[0] != hparams.codebook_dim ||
@@ -1215,7 +1274,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
              default:
                  GGML_ASSERT(false && "unknown projector type");
          }
-@@ -3627,7 +3791,8 @@
+@@ -3627,7 +3834,8 @@
          } else {
              // GEMMA4UA uses n_mel_bins as a raw-waveform frame size (640), not a mel-bin count,
              // so the [1, 256] bound only applies to FFT-based models.
@@ -1225,7 +1284,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
              if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
                  throw std::runtime_error(string_format("%s: invalid n_mel_bins (%d), must be in [1, 256]\n", __func__, hparams.n_mel_bins));
              }
-@@ -4006,6 +4171,8 @@
+@@ -4006,6 +4214,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->nx() / params.patch_size) / 2;
@@ -1234,7 +1293,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              return img->nx() / (params.patch_size * params.n_merge);
          case PROJECTOR_TYPE_DEEPSEEKOCR:
-@@ -4032,6 +4199,8 @@
+@@ -4032,6 +4242,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->ny() / params.patch_size) / 2;
@@ -1243,7 +1302,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_STEP3VL:
              return img->ny() / (params.patch_size * params.n_merge);
          default:
-@@ -4333,6 +4502,15 @@
+@@ -4333,6 +4545,15 @@
                      n_patches += h * (w + 1);
                  }
              } break;
@@ -1259,7 +1318,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          default:
              GGML_ABORT("unsupported projector type");
      }
-@@ -4340,19 +4518,21 @@
+@@ -4340,19 +4561,21 @@
      return n_patches;
  }
  
@@ -1284,7 +1343,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
      return clip_encode(ctx, &params);
  }
-@@ -4370,6 +4550,16 @@
+@@ -4370,6 +4593,16 @@
      const clip_image_f32_batch & imgs = *params->imgs;
      int n_batch_cur = imgs.entries.size();
  
@@ -1301,7 +1360,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
      // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
      if (!ctx->support_batch && n_batch_cur > clip_model_n_temporal_merge(ctx)) {
          LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, clip_model_n_temporal_merge(ctx));
-@@ -4532,6 +4722,11 @@
+@@ -4532,6 +4765,11 @@
  
      // set input per projector
      switch (ctx->model.proj_type) {
@@ -1313,7 +1372,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              {
                  const int grid_w = pos_w;            // image_size_width  / patch_size
-@@ -5653,8 +5848,39 @@
+@@ -5653,8 +5891,39 @@
          return false;
      }
  
@@ -1354,7 +1413,7 @@ diff -ruN --no-dereference a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  
      if (embeddings != nullptr) {
          // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
-@@ -5894,11 +6120,19 @@
+@@ -5894,11 +6163,19 @@
              return ctx->model.gen_input_lin_w->ne[1];
          case PROJECTOR_TYPE_PARAKEET:
              return ctx->model.mm_1_w->ne[1];
