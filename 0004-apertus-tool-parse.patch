@@ -8,8 +8,8 @@ Ignore leftover special-token closers, use section_end when the prefix
 was parked on per_call_start, and recover function-as-key JSON into
 OpenAI tool_calls.
 
---- a/common/chat.cpp	2026-09-04 04:38:12.061946022 +0200
-+++ b/common/chat.cpp	2026-09-04 04:38:12.207547485 +0200
+--- a/common/chat.cpp
++++ b/common/chat.cpp
 @@ -15,6 +15,7 @@
  #include "peg-parser.h"
  
@@ -18,7 +18,7 @@ OpenAI tool_calls.
  #include <cstdio>
  #include <cstdlib>
  #include <ctime>
-@@ -3819,6 +3820,79 @@
+@@ -3826,6 +3827,79 @@
      return common_chat_peg_parse(params.parser, input, is_partial, params);
  }
  
@@ -98,7 +98,7 @@ OpenAI tool_calls.
  common_chat_msg common_chat_peg_parse(const common_peg_arena &          src_parser,
                                        const std::string &               input,
                                        bool                              is_partial,
-@@ -3845,10 +3919,38 @@
+@@ -3852,10 +3926,38 @@
      common_peg_parse_context ctx(effective_input, flags);
      auto result = parser.parse(ctx);
  
@@ -138,7 +138,7 @@ OpenAI tool_calls.
              // Try to extract any partial results from what was successfully parsed
              common_chat_msg msg;
              msg.role = "assistant";
-@@ -3861,6 +3963,7 @@
+@@ -3868,6 +3970,7 @@
                  mapper = std::make_unique<common_chat_peg_mapper>(msg);
              }
              mapper->from_ast(ctx.ast, result);
@@ -146,7 +146,7 @@ OpenAI tool_calls.
  
              if (ctx.is_debug()) {
                  fprintf(stderr, "\nAST for partial parse (fail):\n%s\n", ctx.ast.dump().c_str());
-@@ -3868,7 +3971,7 @@
+@@ -3875,7 +3978,7 @@
              }
              return msg;
          }
@@ -155,7 +155,7 @@ OpenAI tool_calls.
          LOG_DBG("%s: full %s output triggering error:\n=== BEGIN ===\n%s\n=== END ===\n", __func__, common_chat_format_name(params.format), effective_input.c_str());
          throw std::runtime_error(std::string("The model produced output that does not match the expected ") + common_chat_format_name(params.format) + " format");
      }
-@@ -3885,6 +3988,7 @@
+@@ -3892,6 +3995,7 @@
          mapper = std::make_unique<common_chat_peg_mapper>(msg);
      }
      mapper->from_ast(ctx.ast, result);
@@ -163,8 +163,8 @@ OpenAI tool_calls.
  
      if (ctx.is_debug()) {
          fprintf(stderr, "\nAST for %s parse:\n%s\n", is_partial ? "partial" : "full", ctx.ast.dump().c_str());
---- a/common/chat-auto-parser-generator.cpp	2026-09-04 04:38:12.209947801 +0200
-+++ b/common/chat-auto-parser-generator.cpp	2026-09-04 04:38:12.352386758 +0200
+--- a/common/chat-auto-parser-generator.cpp
++++ b/common/chat-auto-parser-generator.cpp
 @@ -227,8 +227,14 @@
  
      auto tools_parser = p.eps();
@@ -181,8 +181,8 @@ OpenAI tool_calls.
              inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED, name_field, args_field, format.tools_array_wrapped,
              format.fun_name_is_key, format.id_field, format.gen_id_field, format.parameter_order, format.openai_wrapper_trigger);
          tools_parser = p.trigger_rule("tool-calls", p.one_or_more(single_tool_parser + p.space()));
---- a/common/chat-diff-analyzer.cpp	2026-09-04 04:38:12.357949579 +0200
-+++ b/common/chat-diff-analyzer.cpp	2026-09-04 04:38:12.500216019 +0200
+--- a/common/chat-diff-analyzer.cpp
++++ b/common/chat-diff-analyzer.cpp
 @@ -1096,6 +1096,16 @@
          if (calls_one > 0 && calls_one == calls_two) {
              format.section_end = format.per_call_end;
