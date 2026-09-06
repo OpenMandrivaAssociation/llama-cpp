@@ -1873,7 +1873,7 @@
 +
 +bool mtmd_audio_preprocessor_apertus::preprocess(const float *                 samples,
 +                                                  size_t                        n_samples,
-+                                                  std::vector<mtmd_audio_mel> & output) {
++                                                  std::vector<mtmd_audio_mel> & output) const {
 +    mtmd_audio_mel waveform;
 +    if (!mtmd_apertus_audio_prepare(samples, n_samples, waveform)) {
 +        return false;
@@ -1897,7 +1897,7 @@
 +struct mtmd_audio_preprocessor_apertus : mtmd_audio_preprocessor {
 +    mtmd_audio_preprocessor_apertus(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
 +    void initialize() override;
-+    bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) override;
++    bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
 +};
 +
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
@@ -2059,7 +2059,7 @@
 +// mtmd_image_preprocessor_apertus
 +//
 +
-+mtmd_image_preproc_out mtmd_image_preprocessor_apertus::preprocess(const clip_image_u8 & img) {
++mtmd_image_preproc_out mtmd_image_preprocessor_apertus::preprocess(const clip_image_u8 & img) const {
 +    GGML_ASSERT(hparams.image_min_pixels > 0 && hparams.image_max_pixels > 0);
 +    GGML_ASSERT(hparams.vision_spatial_factor > 0);
 +
@@ -2097,7 +2097,7 @@
 +// Apertus clamps the image area first and then rounds both dimensions half-up.
 +struct mtmd_image_preprocessor_apertus : mtmd_image_preprocessor {
 +    mtmd_image_preprocessor_apertus(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
-+    mtmd_image_preproc_out preprocess(const clip_image_u8 & img) override;
++    mtmd_image_preproc_out preprocess(const clip_image_u8 & img) const override;
 +};
 +
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
@@ -2395,7 +2395,15 @@
  }
  
  //
-@@ -2134,7 +2238,8 @@
+@@ -419,6 +419,7 @@
+     mtmd_context * ctx;
+     std::vector<const mtmd_input_chunk *> entries;
+     std::vector<float> output_embd; // aggregated output embedding for the whole batch
++    std::vector<llama_token> output_tokens; // discrete media token IDs (Apertus 1.5)
+     mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
+     int32_t n_tokens() const {
+         int32_t n = 0;
+@@ -2134,7 +2239,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
          batch_chunk.get(),
