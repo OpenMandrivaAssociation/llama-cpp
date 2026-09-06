@@ -1,5 +1,6 @@
---- a/conversion/__init__.py
-+++ b/conversion/__init__.py
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/__init__.py llama.cpp-0.4.0/conversion/__init__.py
+--- baseline/conversion/__init__.py	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/conversion/__init__.py	2026-09-06 03:47:31.247347012 +0200
 @@ -20,6 +20,8 @@
      "AfmoeForCausalLM": "afmoe",
      "LagunaForCausalLM": "laguna",
@@ -17,8 +18,9 @@
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
      "CogVLMForCausalLM": "cogvlm",
      "DeepseekOCR2ForCausalLM": "deepseek",
---- a/conversion/llama.py
-+++ b/conversion/llama.py
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/llama.py llama.cpp-0.4.0/conversion/llama.py
+--- baseline/conversion/llama.py	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/conversion/llama.py	2026-09-06 03:47:31.247529325 +0200
 @@ -11,7 +11,7 @@
  if TYPE_CHECKING:
      from torch import Tensor
@@ -179,8 +181,9 @@
 +        if name == "model.audio_tokenizer.quantizer.codebook.embed":
 +            yield "a.codebook.weight", data_torch
 +            return
---- a/gguf-py/gguf/constants.py
-+++ b/gguf-py/gguf/constants.py
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/constants.py llama.cpp-0.4.0/gguf-py/gguf/constants.py
+--- baseline/gguf-py/gguf/constants.py	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/gguf-py/gguf/constants.py	2026-09-06 03:47:31.247928120 +0200
 @@ -103,6 +103,7 @@
  
      class LLM:
@@ -228,8 +231,9 @@
  
  
  # Items here are (block size, type size)
---- a/gguf-py/gguf/gguf_writer.py
-+++ b/gguf-py/gguf/gguf_writer.py
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/gguf_writer.py llama.cpp-0.4.0/gguf-py/gguf/gguf_writer.py
+--- baseline/gguf-py/gguf/gguf_writer.py	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/gguf-py/gguf/gguf_writer.py	2026-09-06 03:47:31.248299685 +0200
 @@ -688,6 +688,9 @@
      def add_vocab_size(self, size: int) -> None:
          self.add_uint32(Keys.LLM.VOCAB_SIZE.format(arch=self.arch), size)
@@ -302,8 +306,9 @@
      def add_audio_num_mel_bins(self, value: int) -> None:
          self.add_uint32(Keys.ClipAudio.NUM_MEL_BINS, value)
  
---- a/models/templates/swiss-ai-Apertus-v1.5.jinja
-+++ b/models/templates/swiss-ai-Apertus-v1.5.jinja
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/models/templates/swiss-ai-Apertus-v1.5.jinja llama.cpp-0.4.0/models/templates/swiss-ai-Apertus-v1.5.jinja
+--- baseline/models/templates/swiss-ai-Apertus-v1.5.jinja	1970-01-01 01:00:00.000000000 +0100
++++ llama.cpp-0.4.0/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-09-06 03:47:31.248579428 +0200
 @@ -0,0 +1,374 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
@@ -679,8 +684,9 @@
 +{%- if add_generation_prompt -%}
 +    {{ assistant_token }}
 +{%- endif -%}
---- a/src/llama-arch.cpp
-+++ b/src/llama-arch.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.cpp llama.cpp-0.4.0/src/llama-arch.cpp
+--- baseline/src/llama-arch.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/src/llama-arch.cpp	2026-09-06 03:47:31.248702360 +0200
 @@ -185,6 +185,7 @@
      { LLM_KV_GENERAL_SOURCE_HF_REPO,           "general.source.huggingface.repository" },
  
@@ -697,8 +703,9 @@
          case LLM_ARCH_GROK:
          case LLM_ARCH_MPT:
          case LLM_ARCH_PLAMO2:
---- a/src/llama-arch.h
-+++ b/src/llama-arch.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.h llama.cpp-0.4.0/src/llama-arch.h
+--- baseline/src/llama-arch.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/src/llama-arch.h	2026-09-06 03:47:31.248836402 +0200
 @@ -190,6 +190,7 @@
      LLM_KV_GENERAL_SOURCE_HF_REPO,
  
@@ -707,8 +714,9 @@
      LLM_KV_CONTEXT_LENGTH,
      LLM_KV_EMBEDDING_LENGTH,
      LLM_KV_EMBEDDING_LENGTH_OUT,
---- a/src/llama-hparams.h
-+++ b/src/llama-hparams.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-hparams.h llama.cpp-0.4.0/src/llama-hparams.h
+--- baseline/src/llama-hparams.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/src/llama-hparams.h	2026-09-06 03:47:31.248933373 +0200
 @@ -247,6 +247,9 @@
      uint32_t dflash_selector_rank    = 0;
      uint32_t dflash_selector_top_k   = 0;
@@ -719,8 +727,9 @@
      // llama4 smallthinker
      uint32_t n_moe_layer_step        = 0;
      uint32_t n_no_rope_layer_step    = 4;
---- a/src/llama-model.cpp
-+++ b/src/llama-model.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-model.cpp llama.cpp-0.4.0/src/llama-model.cpp
+--- baseline/src/llama-model.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/src/llama-model.cpp	2026-09-06 03:47:31.249135485 +0200
 @@ -1218,6 +1218,7 @@
      }
  
@@ -729,8 +738,9 @@
      ml.get_key(LLM_KV_EMBEDDING_LENGTH,        hparams.n_embd);
      ml.get_key(LLM_KV_EMBEDDING_LENGTH_OUT,    hparams.n_embd_out_impl, false);
      ml.get_key(LLM_KV_ATTENTION_CAUSAL,        hparams.causal_attn,     false);
---- a/src/models/apertus.cpp
-+++ b/src/models/apertus.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/models/apertus.cpp llama.cpp-0.4.0/src/models/apertus.cpp
+--- baseline/src/models/apertus.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/src/models/apertus.cpp	2026-09-06 03:47:31.249374758 +0200
 @@ -1,4 +1,5 @@
  #include "models.h"
 +#include <float.h>
@@ -781,8 +791,9 @@
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  
---- a/tools/mtmd/CMakeLists.txt
-+++ b/tools/mtmd/CMakeLists.txt
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/CMakeLists.txt llama.cpp-0.4.0/tools/mtmd/CMakeLists.txt
+--- baseline/tools/mtmd/CMakeLists.txt	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/CMakeLists.txt	2026-09-06 03:47:31.249462340 +0200
 @@ -29,6 +29,8 @@
              clip-graph.h
              models/models.h
@@ -792,8 +803,9 @@
              models/conformer.cpp
              models/deepseek4v.cpp
              models/dots3note.cpp
---- a/tools/mtmd/clip-impl.h
-+++ b/tools/mtmd/clip-impl.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-impl.h llama.cpp-0.4.0/tools/mtmd/clip-impl.h
+--- baseline/tools/mtmd/clip-impl.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/clip-impl.h	2026-09-06 03:47:31.249580661 +0200
 @@ -52,6 +52,13 @@
  #define KEY_IMAGE_SIZE              "clip.vision.image_size"
  #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
@@ -865,8 +877,9 @@
  };
  
  static projector_type clip_projector_type_from_string(const std::string & str) {
---- a/tools/mtmd/clip-model.h
-+++ b/tools/mtmd/clip-model.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-model.h llama.cpp-0.4.0/tools/mtmd/clip-model.h
+--- baseline/tools/mtmd/clip-model.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/clip-model.h	2026-09-06 03:47:31.249734873 +0200
 @@ -119,6 +119,19 @@
      int32_t muse_glimmer_patch_temporal = 0;
      int32_t muse_glimmer_sparse_factor  = 0;
@@ -973,8 +986,9 @@
      // "indexed" patch embedding norms
      ggml_tensor * patch_norm_1_w = nullptr;
      ggml_tensor * patch_norm_1_b = nullptr;
---- a/tools/mtmd/clip.cpp
-+++ b/tools/mtmd/clip.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.0/tools/mtmd/clip.cpp
+--- baseline/tools/mtmd/clip.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/clip.cpp	2026-09-06 03:47:31.250299400 +0200
 @@ -14,6 +14,7 @@
  #include <cassert>
  #include <cmath>
@@ -1419,8 +1433,9 @@
  bool clip_is_llava(const struct clip_ctx * ctx) {
      return ctx->model.hparams.has_llava_projector;
  }
---- a/tools/mtmd/clip.h
-+++ b/tools/mtmd/clip.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.h llama.cpp-0.4.0/tools/mtmd/clip.h
+--- baseline/tools/mtmd/clip.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/clip.h	2026-09-06 03:47:31.250882198 +0200
 @@ -84,8 +84,8 @@
  int clip_n_mmproj_embd(const struct clip_ctx * ctx);
  
@@ -1448,8 +1463,9 @@
  
  bool clip_support_batch(const struct clip_ctx * ctx);
  
---- a/tools/mtmd/models/apertus-audio.cpp
-+++ b/tools/mtmd/models/apertus-audio.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-audio.cpp llama.cpp-0.4.0/tools/mtmd/models/apertus-audio.cpp
+--- baseline/tools/mtmd/models/apertus-audio.cpp	1970-01-01 01:00:00.000000000 +0100
++++ llama.cpp-0.4.0/tools/mtmd/models/apertus-audio.cpp	2026-09-06 03:47:31.251010249 +0200
 @@ -0,0 +1,210 @@
 +#include "models.h"
 +
@@ -1661,8 +1677,9 @@
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
---- a/tools/mtmd/models/apertus-vision.cpp
-+++ b/tools/mtmd/models/apertus-vision.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-vision.cpp llama.cpp-0.4.0/tools/mtmd/models/apertus-vision.cpp
+--- baseline/tools/mtmd/models/apertus-vision.cpp	1970-01-01 01:00:00.000000000 +0100
++++ llama.cpp-0.4.0/tools/mtmd/models/apertus-vision.cpp	2026-09-06 03:47:31.251110551 +0200
 @@ -0,0 +1,158 @@
 +#include "models.h"
 +
@@ -1822,8 +1839,9 @@
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
---- a/tools/mtmd/models/models.h
-+++ b/tools/mtmd/models/models.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/models.h llama.cpp-0.4.0/tools/mtmd/models/models.h
+--- baseline/tools/mtmd/models/models.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/models/models.h	2026-09-06 03:47:31.251173471 +0200
 @@ -439,3 +439,13 @@
      clip_graph_muse_glimmer(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
      ggml_cgraph * build() override;
@@ -1838,8 +1856,9 @@
 +    clip_graph_apertus_audio(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
---- a/tools/mtmd/mtmd-audio.cpp
-+++ b/tools/mtmd/mtmd-audio.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-audio.cpp
+--- baseline/tools/mtmd/mtmd-audio.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-audio.cpp	2026-09-06 03:47:31.280860541 +0200
 @@ -1415,6 +1415,45 @@
  }
  
@@ -1886,8 +1905,9 @@
  // mtmd_audio_streaming_istft implementation
  //
  
---- a/tools/mtmd/mtmd-audio.h
-+++ b/tools/mtmd/mtmd-audio.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.h llama.cpp-0.4.0/tools/mtmd/mtmd-audio.h
+--- baseline/tools/mtmd/mtmd-audio.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-audio.h	2026-09-06 03:47:31.280607478 +0200
 @@ -102,6 +102,14 @@
      bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
  };
@@ -1903,8 +1923,9 @@
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
      mtmd_audio_preprocessor_qwen3a(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
      void initialize() override;
---- a/tools/mtmd/mtmd-helper.cpp
-+++ b/tools/mtmd/mtmd-helper.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp
+--- baseline/tools/mtmd/mtmd-helper.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp	2026-09-06 03:47:31.251496106 +0200
 @@ -199,6 +199,60 @@
      return 0;
  }
@@ -1985,8 +2006,9 @@
          if (ret != 0) {
              LOG_ERR("failed to decode %s\n", name);
              llama_batch_free(text_batch);
---- a/tools/mtmd/mtmd-helper.h
-+++ b/tools/mtmd/mtmd-helper.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.h llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h
+--- baseline/tools/mtmd/mtmd-helper.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h	2026-09-06 03:47:31.251606477 +0200
 @@ -133,6 +133,18 @@
                                                  mtmd_helper_post_decode_callback callback,
                                                  void * user_data);
@@ -2006,8 +2028,9 @@
  //
  // video input helpers (requires ffmpeg/ffprobe installed on the system)
  // the notion of video only exists at the helper level, it is not visible to the core mtmd library
---- a/tools/mtmd/mtmd-image.cpp
-+++ b/tools/mtmd/mtmd-image.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-image.cpp
+--- baseline/tools/mtmd/mtmd-image.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-image.cpp	2026-09-06 03:47:31.280522787 +0200
 @@ -786,6 +786,69 @@
      return output;
  }
@@ -2078,8 +2101,9 @@
  //
  // mtmd_image_preprocessor_longest_edge
  //
---- a/tools/mtmd/mtmd-image.h
-+++ b/tools/mtmd/mtmd-image.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.h llama.cpp-0.4.0/tools/mtmd/mtmd-image.h
+--- baseline/tools/mtmd/mtmd-image.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd-image.h	2026-09-06 03:47:31.280326654 +0200
 @@ -118,6 +118,22 @@
  // resize image to multiple of patch_size*n_merge, while preserving aspect ratio
  // if image_resize_pad is true, the resized image will be padded, otherwise it will be either stretched or center-cropped depending on image_resize_pad
@@ -2103,8 +2127,9 @@
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
      mtmd_image_preprocessor_dyn_size(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
      mtmd_image_preproc_out preprocess(const clip_image_u8 & img) const override;
---- a/tools/mtmd/mtmd.cpp
-+++ b/tools/mtmd/mtmd.cpp
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.0/tools/mtmd/mtmd.cpp
+--- baseline/tools/mtmd/mtmd.cpp	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd.cpp	2026-09-06 03:47:31.281313347 +0200
 @@ -27,7 +27,7 @@
  #include <vector>
  
@@ -2185,7 +2210,15 @@
          batch_f32.deserialize(ser);
      }
  };
-@@ -480,6 +515,7 @@
+@@ -420,6 +455,7 @@
+     mtmd_context * ctx;
+     std::vector<const mtmd_input_chunk *> entries;
+     std::vector<float> output_embd; // aggregated output embedding for the whole batch
++    std::vector<llama_token> output_tokens; // discrete media token IDs (Apertus 1.5)
+     mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
+     int32_t n_tokens() const {
+         int32_t n = 0;
+@@ -480,6 +516,7 @@
      struct clip_ctx * ctx_v; // vision
      struct clip_ctx * ctx_a; // audio
      std::vector<float> out_embd; // image embedding vector
@@ -2193,7 +2226,7 @@
  
      // generation context
      struct clip_ctx * ctx_gen_a; // audio
-@@ -587,8 +623,8 @@
+@@ -587,8 +624,8 @@
              throw std::runtime_error(string_format("Failed to load CLIP model from %s\n", mmproj_fname));
          }
  
@@ -2204,7 +2237,7 @@
              int n_embd_v = clip_n_mmproj_embd(ctx_v);
              int n_embd_a = clip_n_mmproj_embd(ctx_a);
              if (n_embd_v != n_embd_a) {
-@@ -598,8 +634,9 @@
+@@ -598,8 +635,9 @@
              }
          }
  
@@ -2216,7 +2249,7 @@
          int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
          if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
              throw std::runtime_error(string_format(
-@@ -607,6 +644,7 @@
+@@ -607,6 +645,7 @@
                  "hint: you may be using wrong mmproj\n",
                  n_embd_text, n_embd_clip));
          }
@@ -2224,7 +2257,7 @@
          if (ctx_gen_a) {
              int n_embd_gen = clip_n_mmproj_embd(ctx_gen_a);
              if (n_embd_text > 0 && n_embd_text != n_embd_gen) {
-@@ -708,6 +746,10 @@
+@@ -708,6 +747,10 @@
                      img_end = "]<]end of image[>[";
                      image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(ctx_v);
                  } break;
@@ -2235,7 +2268,7 @@
              case PROJECTOR_TYPE_MUSE_GLIMMER:
                  {
                      img_beg = "<|image_start|>";
-@@ -1005,6 +1047,12 @@
+@@ -1005,6 +1048,12 @@
                  {
                      audio_preproc = std::make_unique<mtmd_audio_preprocessor_pockettts>(ctx_a);
                  } break;
@@ -2248,7 +2281,7 @@
              default:
                  throw std::runtime_error(string_format("%s: unexpected audio projector type %d\n", __func__, proj));
          }
-@@ -1513,6 +1561,26 @@
+@@ -1513,6 +1562,26 @@
                      image_tokens->nx = n_tokens;
                      image_tokens->ny = 1;
                  }
@@ -2275,7 +2308,7 @@
                  image_tokens->pos = ctx->pos_type;
                  // HunyuanVL wraps the image grid with BOI/EOI and adds one newline per row,
                  // and uses XD-RoPE (dim-3 = image index). Override the position type so that
-@@ -1771,7 +1839,8 @@
+@@ -1771,7 +1840,8 @@
      }
  }
  
@@ -2285,7 +2318,7 @@
      clip_ctx * ctx_clip = ctx->ctx_v;
      if (!ctx_clip) {
          LOG_ERR("%s: this API does not support non-vision input, please use mtmd_encode_chunk instead\n", __func__);
-@@ -1780,7 +1849,11 @@
+@@ -1780,7 +1850,11 @@
  
      int n_embd_out = ctx->n_embd_out();
      auto n_tokens_out = image_tokens->n_tokens();
@@ -2298,7 +2331,7 @@
  
      if (image_tokens->is_placeholder()) {
          LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
-@@ -1791,12 +1864,33 @@
+@@ -1791,12 +1865,33 @@
          ctx_clip,
          ctx->n_threads,
          &image_tokens->batch_f32,
@@ -2334,7 +2367,7 @@
      if (chunk->type == MTMD_INPUT_CHUNK_TYPE_TEXT) {
          LOG_WRN("mtmd_encode_chunk has no effect for text chunks\n");
          return 0;
-@@ -1813,7 +1907,7 @@
+@@ -1813,7 +1908,7 @@
              LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
              return 1;
          }
@@ -2343,7 +2376,7 @@
      } else if (chunk->type == MTMD_INPUT_CHUNK_TYPE_AUDIO) {
          if (!ctx->ctx_a) {
              LOG_ERR("%s: model does not support audio input\n", __func__);
-@@ -1828,12 +1922,17 @@
+@@ -1828,12 +1923,17 @@
              return 1;
          }
          int n_mmproj_embd = ctx->n_embd_out();
@@ -2363,7 +2396,7 @@
          return ok ? 0 : 1;
      }
  
-@@ -1844,7 +1943,7 @@
+@@ -1844,7 +1944,7 @@
  int32_t mtmd_encode_chunk(mtmd_context * ctx, const mtmd_input_chunk * chunk) {
      // this is the non-batching version
      try {
@@ -2372,7 +2405,7 @@
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1853,7 +1952,7 @@
+@@ -1853,7 +1953,7 @@
  
  int32_t mtmd_encode(mtmd_context * ctx, const mtmd_image_tokens * image_tokens) {
      try {
@@ -2381,7 +2414,7 @@
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1861,7 +1960,12 @@
+@@ -1861,7 +1961,12 @@
  }
  
  float * mtmd_get_output_embd(mtmd_context * ctx) {
@@ -2395,14 +2428,6 @@
  }
  
  //
-@@ -419,6 +419,7 @@
-     mtmd_context * ctx;
-     std::vector<const mtmd_input_chunk *> entries;
-     std::vector<float> output_embd; // aggregated output embedding for the whole batch
-+    std::vector<llama_token> output_tokens; // discrete media token IDs (Apertus 1.5)
-     mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
-     int32_t n_tokens() const {
-         int32_t n = 0;
 @@ -2134,7 +2239,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
@@ -2413,8 +2438,9 @@
      return res;
  }
  
---- a/tools/mtmd/mtmd.h
-+++ b/tools/mtmd/mtmd.h
+diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.h llama.cpp-0.4.0/tools/mtmd/mtmd.h
+--- baseline/tools/mtmd/mtmd.h	2026-09-04 14:22:38.000000000 +0200
++++ llama.cpp-0.4.0/tools/mtmd/mtmd.h	2026-09-06 03:47:31.252333996 +0200
 @@ -331,6 +331,9 @@
  // llama_model_n_embd_inp(model) * mtmd_input_chunk_get_n_tokens(chunk) * sizeof(float)
  MTMD_API float * mtmd_get_output_embd(mtmd_context * ctx);
