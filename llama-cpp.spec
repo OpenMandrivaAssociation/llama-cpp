@@ -30,7 +30,7 @@
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
 Version:		0.4.0
-Release:		1
+Release:		2
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -97,11 +97,15 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 #       that to v3. Empty tool-call args become {} in the 1.5 jinja.
 # 0004: recover leftover <|tools_suffix|> / function-as-key JSON so
 #       the OpenAI API gets structured tool_calls instead of HTTP 500.
+# 0005: Ollama 0.34.0 GGUF translation layer (llama/compat/). Load-time
+#       hooks only; OLLAMA_LLAMA_CPP_COMPAT=0 disables them. No-op on
+#       standard llama.cpp GGUFs.
 # Keep after all preamble tags: %patchlist is a section-like directive.
 %patchlist
 0002-export-lora-system-ggml.patch
 0003-apertus-1.5.patch
 0004-apertus-tool-parse.patch
+0005-ollama-compat.patch
 
 %description
 llama.cpp runs GGUF language (and vision) models. Tensor kernels come
@@ -111,6 +115,10 @@ from the system ggml package; optional accelerators are separate:
 * ggml-backend-vulkan — Vulkan
 * ggml-backend-opencl — OpenCL
 * ggml-backend-hip — AMD ROCm/HIP
+
+Ollama-published GGUFs whose on-disk metadata does not yet match
+llama.cpp are translated in memory at load time (same layer ollama
+ships). Set OLLAMA_LLAMA_CPP_COMPAT=0 to disable.
 
 %package devel
 Summary:	Development files for %{name}
