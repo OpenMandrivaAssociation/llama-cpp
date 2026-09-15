@@ -100,6 +100,9 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 # 0005: Ollama 0.34.0 GGUF translation layer (llama/compat/). Load-time
 #       hooks only; OLLAMA_LLAMA_CPP_COMPAT=0 disables them. No-op on
 #       standard llama.cpp GGUFs.
+# 0.4.1 added unity-build / PCH lines that shift CMake context in 0005.
+%global _default_patch_fuzz 3
+
 # Keep after all preamble tags: %patchlist is a section-like directive.
 %patchlist
 0002-export-lora-system-ggml.patch
