@@ -45,7 +45,7 @@ Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{nightly_tag}
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml) >= 0.24.0
+BuildRequires:	cmake(ggml) >= 0.25.1
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	python-devel
@@ -60,7 +60,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.24.0
+Requires:	%{mklibname ggml}%{?_isa} >= 0.25.1
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
