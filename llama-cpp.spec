@@ -30,7 +30,7 @@
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
 Version:		0.5.0
-Release:		1
+Release:		2
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -67,6 +67,9 @@ Recommends:	ggml-backend-blas%{?_isa}
 Recommends:	ggml-backend-vulkan%{?_isa}
 Suggests:	ggml-backend-opencl%{?_isa}
 Suggests:	ggml-backend-hip%{?_isa}
+%ifarch x86_64 znver1
+Suggests:	ggml-backend-sycl%{?_isa}
+%endif
 
 # ggml-config.cmake lists optional backends (CUDA, DNNL, …) as hard deps
 %global __requires_exclude cmake\\((hip|roc|mkl|intelsycl|cudatoolkit|CUDAToolkit|dnnl|DNNL|openvino|OpenVINO|sycl|SYCL).*
@@ -118,6 +121,7 @@ from the system ggml package; optional accelerators are separate:
 * ggml-backend-vulkan — Vulkan
 * ggml-backend-opencl — OpenCL
 * ggml-backend-hip — AMD ROCm/HIP
+* ggml-backend-sycl — Intel GPU via DPC++ / Level Zero (x86_64)
 
 Ollama-published GGUFs whose on-disk metadata does not yet match
 llama.cpp are translated in memory at load time (same layer ollama
