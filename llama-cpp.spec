@@ -67,7 +67,7 @@ Recommends:	ggml-backend-blas%{?_isa}
 Recommends:	ggml-backend-vulkan%{?_isa}
 Suggests:	ggml-backend-opencl%{?_isa}
 Suggests:	ggml-backend-hip%{?_isa}
-%ifarch x86_64 znver1
+%ifarch x86_64 znver1 aarch64
 Suggests:	ggml-backend-sycl%{?_isa}
 %endif
 
@@ -121,7 +121,7 @@ from the system ggml package; optional accelerators are separate:
 * ggml-backend-vulkan — Vulkan
 * ggml-backend-opencl — OpenCL
 * ggml-backend-hip — AMD ROCm/HIP
-* ggml-backend-sycl — Intel GPU via DPC++ / Level Zero (x86_64)
+* ggml-backend-sycl — Intel GPU via DPC++ / Level Zero
 
 Ollama-published GGUFs whose on-disk metadata does not yet match
 llama.cpp are translated in memory at load time (same layer ollama
