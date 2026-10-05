@@ -4,8 +4,8 @@
 
 %global pypi_name gguf
 # vX.Y.Z GitHub releases only ship nightly-tag.txt; the prebuilt web UI
-# is attached to the matching nightly (b11146 for 0.5.0).
-%global nightly_tag b11146
+# is attached to the matching nightly (b11429 for 0.6.0).
+%global nightly_tag b11429
 
 # Out-of-tree cmake/ninja can leave empty debugsourcefiles.list; rpm then
 # fails on x86_64/aarch64. Keep -debuginfo; skip empty -debugsource.
@@ -29,8 +29,8 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		0.5.0
-Release:		2
+Version:		0.6.0
+Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -45,7 +45,7 @@ Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{nightly_tag}
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml) >= 0.25.1
+BuildRequires:	cmake(ggml) >= 0.26.0
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	python-devel
@@ -60,7 +60,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.25.1
+Requires:	%{mklibname ggml}%{?_isa} >= 0.26.0
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
@@ -131,7 +131,7 @@ ships). Set OLLAMA_LLAMA_CPP_COMPAT=0 to disable.
 Summary:	Development files for %{name}
 Group:		Development/C++
 Requires:	%{name}%{?_isa} = %{EVRD}
-Requires:	cmake(ggml)
+Requires:	cmake(ggml) >= 0.26.0
 
 %description devel
 Headers, pkg-config and CMake package config for llama.cpp.

@@ -16,8 +16,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/__init__.py llama.cpp-0
  MMPROJ_MODEL_MAP: dict[str, str] = {
 +    "Apertus1p5ForConditionalGeneration": "llama",
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
+     "ClefModel": "clef",
      "CogVLMForCausalLM": "cogvlm",
-     "DeepseekOCR2ForCausalLM": "deepseek",
 diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/llama.py llama.cpp-0.4.0/conversion/llama.py
 --- baseline/conversion/llama.py	2026-09-04 14:22:38.000000000 +0200
 +++ llama.cpp-0.4.0/conversion/llama.py	2026-09-06 03:47:31.247529325 +0200
@@ -688,7 +688,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.cpp llama.cpp-0.4.0
 --- baseline/src/llama-arch.cpp	2026-09-04 14:22:38.000000000 +0200
 +++ llama.cpp-0.4.0/src/llama-arch.cpp	2026-09-06 03:47:31.248702360 +0200
 @@ -185,6 +185,7 @@
-     { LLM_KV_GENERAL_SOURCE_HF_REPO,           "general.source.huggingface.repository" },
+     { LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,           "general.tensor_extra.prec_a4"          },
  
      { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
 +    { LLM_KV_VOCAB_SIZE_OUT,                    "%s.vocab_size_out"                    },
@@ -707,7 +707,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.h llama.cpp-0.4.0/s
 --- baseline/src/llama-arch.h	2026-09-04 14:22:38.000000000 +0200
 +++ llama.cpp-0.4.0/src/llama-arch.h	2026-09-06 03:47:31.248836402 +0200
 @@ -190,6 +190,7 @@
-     LLM_KV_GENERAL_SOURCE_HF_REPO,
+     LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,
  
      LLM_KV_VOCAB_SIZE,
 +    LLM_KV_VOCAB_SIZE_OUT,
@@ -2005,7 +2005,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.c
 +        }
          if (ret != 0) {
              LOG_ERR("failed to decode %s\n", name);
-             llama_batch_free(text_batch);
+             return ret;
 diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.h llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h
 --- baseline/tools/mtmd/mtmd-helper.h	2026-09-04 14:22:38.000000000 +0200
 +++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h	2026-09-06 03:47:31.251606477 +0200
