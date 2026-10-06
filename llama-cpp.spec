@@ -183,7 +183,9 @@ Group:		Sciences/Other
 Requires:	%{name}%{?_isa} = %{EVRD}
 Requires:	python%{pyver}dist(numpy)
 Requires:	python%{pyver}dist(torch)
-Requires:	python%{pyver}dist(transformers)
+# transformers 5.15 requires huggingface-hub < 2, which is not installable
+# on arches that already published huggingface-hub 2.x. 5.18 accepts hub 2.
+Suggests:	python%{pyver}dist(transformers)
 Requires:	python%{pyver}dist(safetensors)
 Recommends:	python%{pyver}dist(sentencepiece)
 Recommends:	python%{pyver}dist(huggingface-hub)
