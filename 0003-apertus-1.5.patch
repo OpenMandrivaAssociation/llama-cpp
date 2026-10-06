@@ -1926,7 +1926,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.h llama.cpp-
 diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp
 --- baseline/tools/mtmd/mtmd-helper.cpp	2026-09-04 14:22:38.000000000 +0200
 +++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp	2026-09-06 03:47:31.251496106 +0200
-@@ -199,6 +199,60 @@
+@@ -199,6 +199,62 @@
      return 0;
  }
  
@@ -1970,7 +1970,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.c
 +
 +        int32_t ret = llama_decode(lctx, batch);
 +        if (ret == 0 && callback != nullptr) {
-+            ret = callback(batch, user_data);
++            // The 0.6.0 callback receives an embedding view, not a token batch.
++            LOG_ERR("%s: post-decode callback is not supported for discrete media tokens\n", __func__);
++            ret = -1;
 +        }
 +        if (ret != 0) {
 +            LOG_ERR("%s: failed to decode media tokens\n", __func__);
@@ -1987,7 +1989,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.c
  int32_t mtmd_helper_eval_chunk_single(mtmd_context * ctx,
          struct llama_context * lctx,
          const mtmd_input_chunk * chunk,
-@@ -257,8 +311,16 @@
+@@ -257,8 +313,16 @@
  
          LOG_INF("%s slice encoded in %" PRId64 " ms\n", name, ggml_time_ms() - t0);
  
