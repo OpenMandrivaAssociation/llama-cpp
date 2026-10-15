@@ -30,7 +30,7 @@
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
 Version:		0.6.0
-Release:		1
+Release:		2
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -48,7 +48,7 @@ BuildRequires:	pkgconfig(openssl)
 BuildRequires:	cmake(ggml) >= 0.26.0
 BuildRequires:	git-core
 %if %{with examples}
-BuildRequires:	python-devel
+BuildRequires:	pkgconfig(python3)
 BuildRequires:	python%{pyver}dist(build)
 BuildRequires:	python%{pyver}dist(installer)
 BuildRequires:	python%{pyver}dist(poetry-core)
