@@ -1,6 +1,11 @@
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/__init__.py llama.cpp-0.4.0/conversion/__init__.py
---- baseline/conversion/__init__.py	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/conversion/__init__.py	2026-09-06 03:47:31.247347012 +0200
+Apertus 1.5 text model plus discrete vision and audio tokenizers.
+
+Refreshed for llama.cpp 0.7.0. Upstream mtmd serialization is already
+version 3, so the extra token prefix, row separator and suffix fields
+are version 4 and are skipped when an older cache is loaded.
+
+--- a/conversion/__init__.py
++++ b/conversion/__init__.py
 @@ -20,6 +20,8 @@
      "AfmoeForCausalLM": "afmoe",
      "LagunaForCausalLM": "laguna",
@@ -10,7 +15,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/__init__.py llama.cpp-0
      "ArceeForCausalLM": "llama",
      "ArcticForCausalLM": "arctic",
      "AudioFlamingo3ForConditionalGeneration": "qwen",
-@@ -283,6 +285,7 @@
+@@ -307,6 +309,7 @@
  
  
  MMPROJ_MODEL_MAP: dict[str, str] = {
@@ -18,9 +23,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/__init__.py llama.cpp-0
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
      "ClefModel": "clef",
      "CogVLMForCausalLM": "cogvlm",
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/llama.py llama.cpp-0.4.0/conversion/llama.py
---- baseline/conversion/llama.py	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/conversion/llama.py	2026-09-06 03:47:31.247529325 +0200
+--- a/conversion/llama.py
++++ b/conversion/llama.py
 @@ -11,7 +11,7 @@
  if TYPE_CHECKING:
      from torch import Tensor
@@ -181,10 +185,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/conversion/llama.py llama.cpp-0.4.
 +        if name == "model.audio_tokenizer.quantizer.codebook.embed":
 +            yield "a.codebook.weight", data_torch
 +            return
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/constants.py llama.cpp-0.4.0/gguf-py/gguf/constants.py
---- baseline/gguf-py/gguf/constants.py	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/gguf-py/gguf/constants.py	2026-09-06 03:47:31.247928120 +0200
-@@ -103,6 +103,7 @@
+--- a/gguf-py/gguf/constants.py
++++ b/gguf-py/gguf/constants.py
+@@ -107,6 +107,7 @@
  
      class LLM:
          VOCAB_SIZE                        = "{arch}.vocab_size"
@@ -192,7 +195,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/constants.py llama.cp
          CONTEXT_LENGTH                    = "{arch}.context_length"
          EMBEDDING_LENGTH                  = "{arch}.embedding_length"
          EMBEDDING_LENGTH_OUT              = "{arch}.embedding_length_out"
-@@ -393,6 +394,13 @@
+@@ -438,6 +439,13 @@
          WINDOW_SIZE           = "clip.vision.window_size"
          FEATURE_LAYERS        = "clip.vision.feature_layer" # Granite4 Vision
          IMAGE_GRID_PINPOINTS  = "clip.vision.image_grid_pinpoints" # Granite4 Vision
@@ -206,7 +209,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/constants.py llama.cp
  
          class Attention:
              HEAD_COUNT      = "clip.vision.attention.head_count"
-@@ -429,6 +437,15 @@
+@@ -474,6 +482,15 @@
          WINDOW_SIZE         = "clip.audio.window_size"
          LOCAL_BLOCK_COUNT   = "clip.audio.local_block_count" # mimo-v2.5: input_local_transformer layer count
          LOCAL_GROUP_SIZE    = "clip.audio.local_group_size"  # mimo-v2.5: input_local_transformer grouping size
@@ -222,19 +225,18 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/constants.py llama.cp
  
          class Attention:
              HEAD_COUNT      = "clip.audio.attention.head_count"
-@@ -5676,6 +5693,8 @@
+@@ -6280,6 +6297,8 @@
      MIMO_AUDIO     = "mimo_audio"
      GRANITE4_VISION = "granite4_vision"
      MUSE_GLIMMER   = "muse-glimmer"
 +    APERTUS_VISION = "apertus_vision"
 +    APERTUS_AUDIO  = "apertus_audio"
- 
- 
- # Items here are (block size, type size)
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/gguf_writer.py llama.cpp-0.4.0/gguf-py/gguf/gguf_writer.py
---- baseline/gguf-py/gguf/gguf_writer.py	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/gguf-py/gguf/gguf_writer.py	2026-09-06 03:47:31.248299685 +0200
-@@ -688,6 +688,9 @@
+     COHERE2V       = "cohere2v"
+     D1OMNI_V       = "d1omni_v"  # lfm2 vision, without separator tokens
+     D1OMNI_A       = "d1omni_a"  # lfm2a audio, with a residual block after the projector
+--- a/gguf-py/gguf/gguf_writer.py
++++ b/gguf-py/gguf/gguf_writer.py
+@@ -695,6 +695,9 @@
      def add_vocab_size(self, size: int) -> None:
          self.add_uint32(Keys.LLM.VOCAB_SIZE.format(arch=self.arch), size)
  
@@ -244,7 +246,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/gguf_writer.py llama.
      def add_context_length(self, length: int) -> None:
          self.add_uint32(Keys.LLM.CONTEXT_LENGTH.format(arch=self.arch), length)
  
-@@ -1446,6 +1449,27 @@
+@@ -1547,6 +1550,27 @@
      def add_vision_image_grid_pinpoints(self, layers: Sequence[Sequence[int]]) -> None:
          self.add_array(Keys.ClipVision.IMAGE_GRID_PINPOINTS, layers)
  
@@ -272,7 +274,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/gguf_writer.py llama.
      def add_vision_sam_layers_count(self, value: int) -> None:
          self.add_uint32(Keys.ClipVision.SAM.BLOCK_COUNT, value)
  
-@@ -1478,6 +1502,33 @@
+@@ -1579,6 +1603,33 @@
      def add_audio_attention_layernorm_eps(self, value: float) -> None:
          self.add_float32(Keys.ClipAudio.Attention.LAYERNORM_EPS, value)
  
@@ -306,9 +308,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/gguf-py/gguf/gguf_writer.py llama.
      def add_audio_num_mel_bins(self, value: int) -> None:
          self.add_uint32(Keys.ClipAudio.NUM_MEL_BINS, value)
  
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/models/templates/swiss-ai-Apertus-v1.5.jinja llama.cpp-0.4.0/models/templates/swiss-ai-Apertus-v1.5.jinja
---- baseline/models/templates/swiss-ai-Apertus-v1.5.jinja	1970-01-01 01:00:00.000000000 +0100
-+++ llama.cpp-0.4.0/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-09-06 03:47:31.248579428 +0200
+--- a/models/templates/swiss-ai-Apertus-v1.5.jinja
++++ b/models/templates/swiss-ai-Apertus-v1.5.jinja
 @@ -0,0 +1,374 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
@@ -684,10 +685,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/models/templates/swiss-ai-Apertus-
 +{%- if add_generation_prompt -%}
 +    {{ assistant_token }}
 +{%- endif -%}
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.cpp llama.cpp-0.4.0/src/llama-arch.cpp
---- baseline/src/llama-arch.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/src/llama-arch.cpp	2026-09-06 03:47:31.248702360 +0200
-@@ -185,6 +185,7 @@
+--- a/src/llama-arch.cpp
++++ b/src/llama-arch.cpp
+@@ -197,6 +197,7 @@
      { LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,           "general.tensor_extra.prec_a4"          },
  
      { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
@@ -695,7 +695,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.cpp llama.cpp-0.4.0
      { LLM_KV_CONTEXT_LENGTH,                    "%s.context_length"                    },
      { LLM_KV_EMBEDDING_LENGTH,                  "%s.embedding_length"                  },
      { LLM_KV_EMBEDDING_LENGTH_OUT,              "%s.embedding_length_out"              },
-@@ -1117,6 +1118,7 @@
+@@ -1266,6 +1267,7 @@
  
  bool llm_arch_supports_sm_tensor(const llm_arch & arch) {
      switch (arch) {
@@ -703,10 +703,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.cpp llama.cpp-0.4.0
          case LLM_ARCH_GROK:
          case LLM_ARCH_MPT:
          case LLM_ARCH_PLAMO2:
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.h llama.cpp-0.4.0/src/llama-arch.h
---- baseline/src/llama-arch.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/src/llama-arch.h	2026-09-06 03:47:31.248836402 +0200
-@@ -190,6 +190,7 @@
+--- a/src/llama-arch.h
++++ b/src/llama-arch.h
+@@ -202,6 +202,7 @@
      LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,
  
      LLM_KV_VOCAB_SIZE,
@@ -714,12 +713,11 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-arch.h llama.cpp-0.4.0/s
      LLM_KV_CONTEXT_LENGTH,
      LLM_KV_EMBEDDING_LENGTH,
      LLM_KV_EMBEDDING_LENGTH_OUT,
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-hparams.h llama.cpp-0.4.0/src/llama-hparams.h
---- baseline/src/llama-hparams.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/src/llama-hparams.h	2026-09-06 03:47:31.248933373 +0200
-@@ -247,6 +247,9 @@
-     uint32_t dflash_selector_rank    = 0;
-     uint32_t dflash_selector_top_k   = 0;
+--- a/src/llama-hparams.h
++++ b/src/llama-hparams.h
+@@ -271,6 +271,9 @@
+     float    lilicorr_vector_eps     = 0.0f;
+     float    lilicorr_logit_scale    = 0.0f;
  
 +    // output vocabulary size (0 = use the tokenizer vocabulary size)
 +    uint32_t n_vocab_out_impl = 0;
@@ -727,10 +725,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-hparams.h llama.cpp-0.4.
      // llama4 smallthinker
      uint32_t n_moe_layer_step        = 0;
      uint32_t n_no_rope_layer_step    = 4;
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-model.cpp llama.cpp-0.4.0/src/llama-model.cpp
---- baseline/src/llama-model.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/src/llama-model.cpp	2026-09-06 03:47:31.249135485 +0200
-@@ -1218,6 +1218,7 @@
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1366,6 +1366,7 @@
      }
  
      ml.get_key(LLM_KV_CONTEXT_LENGTH,          hparams.n_ctx_train);
@@ -738,9 +735,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/llama-model.cpp llama.cpp-0.4.
      ml.get_key(LLM_KV_EMBEDDING_LENGTH,        hparams.n_embd);
      ml.get_key(LLM_KV_EMBEDDING_LENGTH_OUT,    hparams.n_embd_out_impl, false);
      ml.get_key(LLM_KV_ATTENTION_CAUSAL,        hparams.causal_attn,     false);
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/models/apertus.cpp llama.cpp-0.4.0/src/models/apertus.cpp
---- baseline/src/models/apertus.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/src/models/apertus.cpp	2026-09-06 03:47:31.249374758 +0200
+--- a/src/models/apertus.cpp
++++ b/src/models/apertus.cpp
 @@ -1,4 +1,5 @@
  #include "models.h"
 +#include <float.h>
@@ -790,10 +786,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/src/models/apertus.cpp llama.cpp-0
 +
      cb(cur, "result_output", -1);
      res->t_logits = cur;
- 
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/CMakeLists.txt llama.cpp-0.4.0/tools/mtmd/CMakeLists.txt
---- baseline/tools/mtmd/CMakeLists.txt	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/CMakeLists.txt	2026-09-06 03:47:31.249462340 +0200
+ }
+--- a/tools/mtmd/CMakeLists.txt
++++ b/tools/mtmd/CMakeLists.txt
 @@ -29,6 +29,8 @@
              clip-graph.h
              models/models.h
@@ -803,9 +798,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/CMakeLists.txt llama.cp
              models/conformer.cpp
              models/deepseek4v.cpp
              models/dots3note.cpp
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-impl.h llama.cpp-0.4.0/tools/mtmd/clip-impl.h
---- baseline/tools/mtmd/clip-impl.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/clip-impl.h	2026-09-06 03:47:31.249580661 +0200
+--- a/tools/mtmd/clip-impl.h
++++ b/tools/mtmd/clip-impl.h
 @@ -52,6 +52,13 @@
  #define KEY_IMAGE_SIZE              "clip.vision.image_size"
  #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
@@ -820,7 +814,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-impl.h llama.cpp-0
  #define KEY_PREPROC_MIN_TILES       "clip.vision.preproc_min_tiles"
  #define KEY_PREPROC_MAX_TILES       "clip.vision.preproc_max_tiles"
  #define KEY_PREPROC_IMAGE_SIZE      "clip.vision.preproc_image_size"
-@@ -88,6 +95,15 @@
+@@ -91,6 +98,15 @@
  #define KEY_A_PROJ_HEAD_COUNT      "clip.audio.projector.head_count"
  #define KEY_A_RVQ_NUM_QUANTIZERS   "clip.audio.rvq.num_quantizers"   // mimo-audio-tokenizer
  #define KEY_A_RVQ_CODEBOOK_SIZE    "clip.audio.rvq.codebook_size"    // mimo-audio-tokenizer: per-quantizer bin count
@@ -836,7 +830,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-impl.h llama.cpp-0
  #define KEY_A_WA_PATTERN_MODE      "clip.audio.wa_pattern_mode"      // mimo-audio-tokenizer, per-layer -1 (full) / 0 (windowed)
  #define KEY_A_ATTN_WINDOW_SIZE     "clip.audio.window_size"          // mimo-audio-tokenizer: sliding-window radius
  #define KEY_A_LOCAL_BLOCK_COUNT    "clip.audio.local_block_count"    // mimo-v2.5: input_local_transformer layer count
-@@ -441,6 +457,22 @@
+@@ -445,6 +461,22 @@
  // TODO: improve this later
  struct clip_ctx;
  
@@ -859,28 +853,27 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-impl.h llama.cpp-0
  enum projector_type {
      PROJECTOR_TYPE_MLP,
      PROJECTOR_TYPE_MLP_NORM,
-@@ -504,6 +536,8 @@
-     PROJECTOR_TYPE_POCKETTTS_SPKENC,
-     PROJECTOR_TYPE_POCKETTTS_GEN,
-     PROJECTOR_TYPE_MUSE_GLIMMER,
+@@ -508,6 +540,8 @@
+     PROJECTOR_TYPE_MIMOVL,
+     PROJECTOR_TYPE_MINIMAX_M3,
+     PROJECTOR_TYPE_GRANITE4_VISION,
 +    PROJECTOR_TYPE_APERTUS_VISION,
 +    PROJECTOR_TYPE_APERTUS_AUDIO,
-     PROJECTOR_TYPE_UNKNOWN,
- };
- 
-@@ -569,6 +603,8 @@
-     { PROJECTOR_TYPE_POCKETTTS_SPKENC,  "pockettts_spkenc"},
-     { PROJECTOR_TYPE_POCKETTTS_GEN,     "pockettts_gen"},
-     { PROJECTOR_TYPE_MUSE_GLIMMER,      "muse-glimmer"},
+     PROJECTOR_TYPE_MIMO_AUDIO,
+     PROJECTOR_TYPE_QWEN3TTS_SPKENC,
+     PROJECTOR_TYPE_QWEN3TTS_GEN,
+@@ -573,6 +607,8 @@
+     { PROJECTOR_TYPE_NEMOTRON_OMNI,     "nemotron_omni"},
+     { PROJECTOR_TYPE_EXAONE4_5,         "exaone4_5"},
+     { PROJECTOR_TYPE_HUNYUANVL,         "hunyuanvl"},
 +    { PROJECTOR_TYPE_APERTUS_VISION,    "apertus_vision"},
 +    { PROJECTOR_TYPE_APERTUS_AUDIO,     "apertus_audio"},
- };
- 
- static projector_type clip_projector_type_from_string(const std::string & str) {
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-model.h llama.cpp-0.4.0/tools/mtmd/clip-model.h
---- baseline/tools/mtmd/clip-model.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/clip-model.h	2026-09-06 03:47:31.249734873 +0200
-@@ -119,6 +119,19 @@
+     { PROJECTOR_TYPE_MINICPMV4_6,       "minicpmv4_6"},
+     { PROJECTOR_TYPE_MINICPMV4_7,       "minicpmv4_7"},
+     { PROJECTOR_TYPE_GRANITE_SPEECH,    "granite_speech"},
+--- a/tools/mtmd/clip-model.h
++++ b/tools/mtmd/clip-model.h
+@@ -122,6 +122,19 @@
      int32_t muse_glimmer_patch_temporal = 0;
      int32_t muse_glimmer_sparse_factor  = 0;
  
@@ -900,7 +893,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-model.h llama.cpp-
      // audio
      int32_t n_mel_bins = 0; // whisper preprocessor
      int32_t proj_stack_factor = 0; // ultravox
-@@ -552,6 +565,57 @@
+@@ -558,6 +571,57 @@
      ggml_tensor * dac_post_conv_b      = nullptr;
  };
  
@@ -958,7 +951,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-model.h llama.cpp-
  struct clip_model {
      clip_modality modality = CLIP_MODALITY_VISION;
      projector_type proj_type = PROJECTOR_TYPE_MLP;
-@@ -566,6 +630,27 @@
+@@ -572,6 +636,27 @@
      ggml_tensor * norm_embd_w = nullptr;
      ggml_tensor * norm_embd_b = nullptr;
  
@@ -986,9 +979,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip-model.h llama.cpp-
      // "indexed" patch embedding norms
      ggml_tensor * patch_norm_1_w = nullptr;
      ggml_tensor * patch_norm_1_b = nullptr;
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.0/tools/mtmd/clip.cpp
---- baseline/tools/mtmd/clip.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/clip.cpp	2026-09-06 03:47:31.250299400 +0200
+--- a/tools/mtmd/clip.cpp
++++ b/tools/mtmd/clip.cpp
 @@ -14,6 +14,7 @@
  #include <cassert>
  #include <cmath>
@@ -1042,7 +1034,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  };
  
  //
-@@ -992,6 +1013,14 @@
+@@ -1021,6 +1042,14 @@
              {
                  builder = std::make_unique<clip_graph_muse_glimmer>(ctx, img);
              } break;
@@ -1057,7 +1049,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
          case PROJECTOR_TYPE_STEP3VL:
              {
                  builder = std::make_unique<clip_graph_step3vl>(ctx, img);
-@@ -1691,6 +1720,22 @@
+@@ -1786,6 +1815,22 @@
                          hparams.set_limit_image_tokens(1, 4096);
                          hparams.set_warmup_n_tokens(32*32);
                      } break;
@@ -1080,7 +1072,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
                  case PROJECTOR_TYPE_MIMOVL:
                      {
                          hparams.n_merge = 2; // spatial_merge_size
-@@ -1963,6 +2008,20 @@
+@@ -2072,6 +2117,20 @@
                          hparams.eps               = 1e-6f;
                          hparams.n_mel_bins        = 640;
                      } break;
@@ -1101,7 +1093,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
                  case PROJECTOR_TYPE_GRANITE_SPEECH:
                      {
                          hparams.audio_chunk_len        = 0;
-@@ -2079,7 +2138,8 @@
+@@ -2188,7 +2247,8 @@
                  // checks below do not apply to it.
                  // pocket-tts is encoder-free in the same sense: mimi convolves the raw waveform
                  const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
@@ -1111,7 +1103,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  
                  // Validate audio hparams loaded from GGUF metadata
                  if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-@@ -2239,7 +2299,9 @@
+@@ -2348,7 +2408,9 @@
          const bool has_standard_layers = (
              model.proj_type != PROJECTOR_TYPE_GEMMA3NV &&
              model.proj_type != PROJECTOR_TYPE_QWEN3TTS_SPKENC &&
@@ -1122,7 +1114,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  
          // layers
          const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
-@@ -3577,6 +3639,151 @@
+@@ -3720,6 +3782,151 @@
                      }
  
                  } break;
@@ -1274,7 +1266,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
              default:
                  GGML_ASSERT(false && "unknown projector type");
          }
-@@ -3667,7 +3874,8 @@
+@@ -3810,7 +4017,8 @@
          } else {
              // GEMMA4UA uses n_mel_bins as a raw-waveform frame size (640), not a mel-bin count,
              // so the [1, 256] bound only applies to FFT-based models.
@@ -1284,25 +1276,25 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
              if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
                  throw std::runtime_error(string_format("%s: invalid n_mel_bins (%d), must be in [1, 256]\n", __func__, hparams.n_mel_bins));
              }
-@@ -4046,6 +4254,8 @@
+@@ -4203,6 +4411,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->nx() / params.patch_size) / 2;
 +        case PROJECTOR_TYPE_APERTUS_VISION:
 +            return img->nx() / params.vision_spatial_factor;
          case PROJECTOR_TYPE_STEP3VL:
-             return img->nx() / (params.patch_size * params.n_merge);
-         case PROJECTOR_TYPE_DEEPSEEKOCR:
-@@ -4072,6 +4282,8 @@
+         case PROJECTOR_TYPE_MINICPMV4_6:
+         case PROJECTOR_TYPE_MINICPMV4_7:
+@@ -4233,6 +4443,8 @@
          case PROJECTOR_TYPE_YOUTUVL:
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              return (img->ny() / params.patch_size) / 2;
 +        case PROJECTOR_TYPE_APERTUS_VISION:
 +            return img->ny() / params.vision_spatial_factor;
          case PROJECTOR_TYPE_STEP3VL:
-             return img->ny() / (params.patch_size * params.n_merge);
-         default:
-@@ -4380,6 +4592,15 @@
+         case PROJECTOR_TYPE_MINICPMV4_6:
+         case PROJECTOR_TYPE_MINICPMV4_7:
+@@ -4550,6 +4762,15 @@
                      n_patches += h * (w + 1);
                  }
              } break;
@@ -1318,7 +1310,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
          default:
              GGML_ABORT("unsupported projector type");
      }
-@@ -4387,19 +4608,21 @@
+@@ -4559,19 +4780,21 @@
      return n_patches;
  }
  
@@ -1343,7 +1335,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  
      return clip_encode(ctx, &params);
  }
-@@ -4417,6 +4640,16 @@
+@@ -4589,6 +4812,16 @@
      const clip_image_f32_batch & imgs = *params->imgs;
      int n_batch_cur = imgs.entries.size();
  
@@ -1360,7 +1352,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
      // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
      if (!ctx->support_batch && n_batch_cur > clip_model_n_temporal_merge(ctx)) {
          LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, clip_model_n_temporal_merge(ctx));
-@@ -4579,6 +4812,11 @@
+@@ -4768,6 +5001,11 @@
  
      // set input per projector
      switch (ctx->model.proj_type) {
@@ -1372,7 +1364,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
          case PROJECTOR_TYPE_MUSE_GLIMMER:
              {
                  const int grid_w = pos_w;            // image_size_width  / patch_size
-@@ -5752,8 +5990,39 @@
+@@ -5950,8 +6188,39 @@
          return false;
      }
  
@@ -1413,7 +1405,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  
      if (embeddings != nullptr) {
          // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
-@@ -6007,11 +6276,19 @@
+@@ -6214,11 +6483,19 @@
              return ctx->model.gen_input_lin_w->ne[1];
          case PROJECTOR_TYPE_PARAKEET:
              return ctx->model.mm_1_w->ne[1];
@@ -1433,10 +1425,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.cpp llama.cpp-0.4.
  bool clip_is_llava(const struct clip_ctx * ctx) {
      return ctx->model.hparams.has_llava_projector;
  }
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.h llama.cpp-0.4.0/tools/mtmd/clip.h
---- baseline/tools/mtmd/clip.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/clip.h	2026-09-06 03:47:31.250882198 +0200
-@@ -84,8 +84,8 @@
+--- a/tools/mtmd/clip.h
++++ b/tools/mtmd/clip.h
+@@ -87,8 +87,8 @@
  int clip_n_mmproj_embd(const struct clip_ctx * ctx);
  
  // TODO: remove clip_image_encode() and always use batched version
@@ -1447,7 +1438,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.h llama.cpp-0.4.0/
  
  enum clip_gen_process_type {
      CLIP_GEN_PROCESS_GEN_UNKNOWN,
-@@ -96,6 +96,7 @@
+@@ -99,6 +99,7 @@
      int n_threads = 1;
      const clip_image_f32_batch * imgs = nullptr;
      std::vector<float> * out_embd = nullptr;
@@ -1455,7 +1446,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.h llama.cpp-0.4.0/
  
      // for audio gen, imgs has exactly one entry: hidden state from backbone (GEN_CODE) or unused (GEN_WAV)
      clip_gen_process_type gen_process = CLIP_GEN_PROCESS_GEN_UNKNOWN;
-@@ -125,6 +126,7 @@
+@@ -128,6 +129,7 @@
  
  bool clip_has_vision_encoder(const struct clip_ctx * ctx);
  bool clip_has_audio_encoder(const struct clip_ctx * ctx);
@@ -1463,9 +1454,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/clip.h llama.cpp-0.4.0/
  
  bool clip_support_batch(const struct clip_ctx * ctx);
  
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-audio.cpp llama.cpp-0.4.0/tools/mtmd/models/apertus-audio.cpp
---- baseline/tools/mtmd/models/apertus-audio.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ llama.cpp-0.4.0/tools/mtmd/models/apertus-audio.cpp	2026-09-06 03:47:31.251010249 +0200
+--- a/tools/mtmd/models/apertus-audio.cpp
++++ b/tools/mtmd/models/apertus-audio.cpp
 @@ -0,0 +1,210 @@
 +#include "models.h"
 +
@@ -1677,9 +1667,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-audio.cp
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-vision.cpp llama.cpp-0.4.0/tools/mtmd/models/apertus-vision.cpp
---- baseline/tools/mtmd/models/apertus-vision.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ llama.cpp-0.4.0/tools/mtmd/models/apertus-vision.cpp	2026-09-06 03:47:31.251110551 +0200
+--- a/tools/mtmd/models/apertus-vision.cpp
++++ b/tools/mtmd/models/apertus-vision.cpp
 @@ -0,0 +1,158 @@
 +#include "models.h"
 +
@@ -1839,10 +1828,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/apertus-vision.c
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/models.h llama.cpp-0.4.0/tools/mtmd/models/models.h
---- baseline/tools/mtmd/models/models.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/models/models.h	2026-09-06 03:47:31.251173471 +0200
-@@ -439,3 +439,13 @@
+--- a/tools/mtmd/models/models.h
++++ b/tools/mtmd/models/models.h
+@@ -450,3 +450,13 @@
      clip_graph_muse_glimmer(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
      ggml_cgraph * build() override;
  };
@@ -1856,10 +1844,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/models/models.h llama.c
 +    clip_graph_apertus_audio(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-audio.cpp
---- baseline/tools/mtmd/mtmd-audio.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-audio.cpp	2026-09-06 03:47:31.280860541 +0200
-@@ -1415,6 +1415,45 @@
+--- a/tools/mtmd/mtmd-audio.cpp
++++ b/tools/mtmd/mtmd-audio.cpp
+@@ -1456,6 +1456,45 @@
  }
  
  //
@@ -1905,10 +1892,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.cpp llama.cp
  // mtmd_audio_streaming_istft implementation
  //
  
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.h llama.cpp-0.4.0/tools/mtmd/mtmd-audio.h
---- baseline/tools/mtmd/mtmd-audio.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-audio.h	2026-09-06 03:47:31.280607478 +0200
-@@ -102,6 +102,14 @@
+--- a/tools/mtmd/mtmd-audio.h
++++ b/tools/mtmd/mtmd-audio.h
+@@ -110,6 +110,14 @@
      bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
  };
  
@@ -1923,9 +1909,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-audio.h llama.cpp-
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
      mtmd_audio_preprocessor_qwen3a(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
      void initialize() override;
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp
---- baseline/tools/mtmd/mtmd-helper.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.cpp	2026-09-06 03:47:31.251496106 +0200
+--- a/tools/mtmd/mtmd-helper.cpp
++++ b/tools/mtmd/mtmd-helper.cpp
 @@ -199,6 +199,62 @@
      return 0;
  }
@@ -1989,7 +1974,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.c
  int32_t mtmd_helper_eval_chunk_single(mtmd_context * ctx,
          struct llama_context * lctx,
          const mtmd_input_chunk * chunk,
-@@ -257,8 +313,16 @@
+@@ -254,8 +310,16 @@
  
          LOG_INF("%s slice encoded in %" PRId64 " ms\n", name, ggml_time_ms() - t0);
  
@@ -2008,10 +1993,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.cpp llama.c
          if (ret != 0) {
              LOG_ERR("failed to decode %s\n", name);
              return ret;
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.h llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h
---- baseline/tools/mtmd/mtmd-helper.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-helper.h	2026-09-06 03:47:31.251606477 +0200
-@@ -133,6 +133,18 @@
+--- a/tools/mtmd/mtmd-helper.h
++++ b/tools/mtmd/mtmd-helper.h
+@@ -143,6 +143,18 @@
                                                  mtmd_helper_post_decode_callback callback,
                                                  void * user_data);
  
@@ -2030,10 +2014,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-helper.h llama.cpp
  //
  // video input helpers (requires ffmpeg/ffprobe installed on the system)
  // the notion of video only exists at the helper level, it is not visible to the core mtmd library
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.cpp llama.cpp-0.4.0/tools/mtmd/mtmd-image.cpp
---- baseline/tools/mtmd/mtmd-image.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-image.cpp	2026-09-06 03:47:31.280522787 +0200
-@@ -786,6 +786,69 @@
+--- a/tools/mtmd/mtmd-image.cpp
++++ b/tools/mtmd/mtmd-image.cpp
+@@ -859,6 +859,69 @@
      return output;
  }
  
@@ -2103,10 +2086,9 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.cpp llama.cp
  //
  // mtmd_image_preprocessor_longest_edge
  //
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.h llama.cpp-0.4.0/tools/mtmd/mtmd-image.h
---- baseline/tools/mtmd/mtmd-image.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd-image.h	2026-09-06 03:47:31.280326654 +0200
-@@ -118,6 +118,22 @@
+--- a/tools/mtmd/mtmd-image.h
++++ b/tools/mtmd/mtmd-image.h
+@@ -129,6 +129,22 @@
  // resize image to multiple of patch_size*n_merge, while preserving aspect ratio
  // if image_resize_pad is true, the resized image will be padded, otherwise it will be either stretched or center-cropped depending on image_resize_pad
  // this is used by models with native support for dynamic image size, for example: Qwen-VL, Pixtral, Kimi-VL, etc
@@ -2129,23 +2111,21 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd-image.h llama.cpp-
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
      mtmd_image_preprocessor_dyn_size(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
      mtmd_image_preproc_out preprocess(const clip_image_u8 & img) const override;
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.0/tools/mtmd/mtmd.cpp
---- baseline/tools/mtmd/mtmd.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd.cpp	2026-09-06 03:47:31.281313347 +0200
-@@ -27,7 +27,7 @@
+--- a/tools/mtmd/mtmd.cpp
++++ b/tools/mtmd/mtmd.cpp
+@@ -28,7 +28,7 @@
  #include <vector>
  
  // remember to bump this if the serialization format changes
--#define MTMD_SERIALIZATION_VERSION 2
-+#define MTMD_SERIALIZATION_VERSION 3
+-#define MTMD_SERIALIZATION_VERSION 3
++#define MTMD_SERIALIZATION_VERSION 4
  
- struct mtmd_serialization {
-     // note: using 64-bit here for future-proofing
-@@ -99,6 +99,26 @@
+ // oldest compat version that can be loaded
+ #define MTMD_SERIALIZATION_VERSION_MIN 2
+@@ -103,6 +103,25 @@
      return str;
  }
  
-+
 +static void mtmd_serialize_tokens(mtmd_serialization & ser, const std::vector<llama_token> & tokens) {
 +    ser.write<uint64_t>(tokens.size());
 +    for (llama_token token : tokens) {
@@ -2168,7 +2148,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
  // only mtmd.cpp needs these, so they're implemented here rather than in clip-impl.h
  void clip_image_f32::serialize(mtmd_serialization & ser) const {
      // remember to bump MTMD_SERIALIZATION_VERSION if this is changed
-@@ -213,7 +233,13 @@
+@@ -235,7 +254,15 @@
      mtmd_pos_type pos = MTMD_POS_TYPE_NORMAL;
      uint32_t image_idx = 0; // 0-based position of this image among image chunks in the prompt(used by pos == MTMD_POS_TYPE_HUNYUANVL)
      uint32_t n_temporal_merge = 1; // for qwen-vl style temporal merge
@@ -2177,12 +2157,14 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
 +    std::vector<llama_token> token_suffix;
      uint32_t n_tokens() const {
 +        if (!token_prefix.empty() || !token_suffix.empty()) {
-+            return token_prefix.size() + nx * ny + token_row_separator.size() * (ny - 1) + token_suffix.size();
++            // Apertus 1.5: special-token wrappers around a discrete image-token grid
++            const uint32_t n_row_sep = ny == 0 ? 0 : (uint32_t) token_row_separator.size() * (ny - 1);
++            return (uint32_t) token_prefix.size() + nx * ny + n_row_sep + (uint32_t) token_suffix.size();
 +        }
          if (pos == MTMD_POS_TYPE_HUNYUANVL) {
              // [BOI] [row0 tokens + newline] ... [row(ny-1) tokens + newline] [EOI]
              return (nx + 1) * ny + 2;
-@@ -254,6 +280,9 @@
+@@ -293,6 +320,9 @@
              pos,
              image_idx,
              n_temporal_merge,
@@ -2192,7 +2174,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
              batch_f32.clone(),
              id
          };
-@@ -267,6 +296,9 @@
+@@ -306,6 +336,9 @@
          ser.write(image_idx);
          ser.write(n_temporal_merge);
          ser.write(id);
@@ -2202,17 +2184,19 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
          batch_f32.serialize(ser);
      }
      void deserialize(mtmd_serialization & ser) {
-@@ -280,6 +312,9 @@
+@@ -319,6 +352,11 @@
          image_idx = ser.read<uint32_t>();
          n_temporal_merge = ser.read<uint32_t>();
          id = ser.read<std::string>();
-+        token_prefix = mtmd_deserialize_tokens(ser);
-+        token_row_separator = mtmd_deserialize_tokens(ser);
-+        token_suffix = mtmd_deserialize_tokens(ser);
++        if (ser.version >= 4) {
++            token_prefix = mtmd_deserialize_tokens(ser);
++            token_row_separator = mtmd_deserialize_tokens(ser);
++            token_suffix = mtmd_deserialize_tokens(ser);
++        }
          batch_f32.deserialize(ser);
      }
  };
-@@ -420,6 +455,7 @@
+@@ -459,6 +497,7 @@
      mtmd_context * ctx;
      std::vector<const mtmd_input_chunk *> entries;
      std::vector<float> output_embd; // aggregated output embedding for the whole batch
@@ -2220,7 +2204,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
      int32_t n_tokens() const {
          int32_t n = 0;
-@@ -480,6 +516,7 @@
+@@ -519,6 +558,7 @@
      struct clip_ctx * ctx_v; // vision
      struct clip_ctx * ctx_a; // audio
      std::vector<float> out_embd; // image embedding vector
@@ -2228,7 +2212,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
  
      // generation context
      struct clip_ctx * ctx_gen_a; // audio
-@@ -587,8 +624,8 @@
+@@ -629,8 +669,8 @@
              throw std::runtime_error(string_format("Failed to load CLIP model from %s\n", mmproj_fname));
          }
  
@@ -2239,27 +2223,34 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
              int n_embd_v = clip_n_mmproj_embd(ctx_v);
              int n_embd_a = clip_n_mmproj_embd(ctx_a);
              if (n_embd_v != n_embd_a) {
-@@ -598,8 +635,9 @@
+@@ -640,14 +680,18 @@
              }
          }
  
 -        // since we already validate n_embd of vision and audio mmproj,
 -        // we can safely assume that they are the same
+-        int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
+-        if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
+-            throw std::runtime_error(string_format(
+-                "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
+-                "hint: you may be using wrong mmproj\n",
+-                n_embd_text, n_embd_clip));
 +        if ((ctx_v && clip_outputs_tokens(ctx_v)) || (ctx_a && clip_outputs_tokens(ctx_a))) {
 +            // discrete tokenizers do not share an embedding width with the text model
 +        } else {
-         int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
-         if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
-             throw std::runtime_error(string_format(
-@@ -607,6 +645,7 @@
-                 "hint: you may be using wrong mmproj\n",
-                 n_embd_text, n_embd_clip));
++            // since we already validate n_embd of vision and audio mmproj,
++            // we can safely assume that they are the same
++            int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
++            if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
++                throw std::runtime_error(string_format(
++                    "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
++                    "hint: you may be using wrong mmproj\n",
++                    n_embd_text, n_embd_clip));
++            }
          }
-+        }
          if (ctx_gen_a) {
              int n_embd_gen = clip_n_mmproj_embd(ctx_gen_a);
-             if (n_embd_text > 0 && n_embd_text != n_embd_gen) {
-@@ -708,6 +747,10 @@
+@@ -753,6 +797,10 @@
                      img_end = "]<]end of image[>[";
                      image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(ctx_v);
                  } break;
@@ -2270,7 +2261,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
              case PROJECTOR_TYPE_MUSE_GLIMMER:
                  {
                      img_beg = "<|image_start|>";
-@@ -1005,6 +1048,12 @@
+@@ -1082,6 +1130,12 @@
                  {
                      audio_preproc = std::make_unique<mtmd_audio_preprocessor_pockettts>(ctx_a);
                  } break;
@@ -2283,7 +2274,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
              default:
                  throw std::runtime_error(string_format("%s: unexpected audio projector type %d\n", __func__, proj));
          }
-@@ -1513,6 +1562,26 @@
+@@ -1601,6 +1655,26 @@
                      image_tokens->nx = n_tokens;
                      image_tokens->ny = 1;
                  }
@@ -2310,7 +2301,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
                  image_tokens->pos = ctx->pos_type;
                  // HunyuanVL wraps the image grid with BOI/EOI and adds one newline per row,
                  // and uses XD-RoPE (dim-3 = image index). Override the position type so that
-@@ -1771,7 +1840,8 @@
+@@ -1916,7 +1990,8 @@
      }
  }
  
@@ -2320,7 +2311,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      clip_ctx * ctx_clip = ctx->ctx_v;
      if (!ctx_clip) {
          LOG_ERR("%s: this API does not support non-vision input, please use mtmd_encode_chunk instead\n", __func__);
-@@ -1780,7 +1850,11 @@
+@@ -1925,7 +2000,11 @@
  
      int n_embd_out = ctx->n_embd_out();
      auto n_tokens_out = image_tokens->n_tokens();
@@ -2333,7 +2324,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
  
      if (image_tokens->is_placeholder()) {
          LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
-@@ -1791,12 +1865,33 @@
+@@ -1954,12 +2033,38 @@
          ctx_clip,
          ctx->n_threads,
          &image_tokens->batch_f32,
@@ -2347,6 +2338,10 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
 +        out_tokens.reserve(image_tokens->n_tokens());
 +        size_t offset = 0;
 +        for (uint32_t row = 0; row < image_tokens->ny; ++row) {
++            if (offset + image_tokens->nx > codes.size()) {
++                LOG_ERR("%s: invalid discrete image token layout\n", __func__);
++                return 1;
++            }
 +            out_tokens.insert(out_tokens.end(), codes.begin() + offset, codes.begin() + offset + image_tokens->nx);
 +            offset += image_tokens->nx;
 +            if (row + 1 < image_tokens->ny) {
@@ -2365,11 +2360,12 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
  }
  
 -static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk, std::vector<float> & out_embd) {
-+static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk, std::vector<float> & out_embd, std::vector<llama_token> & out_tokens) {
++static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk,
++                                      std::vector<float> & out_embd, std::vector<llama_token> & out_tokens) {
      if (chunk->type == MTMD_INPUT_CHUNK_TYPE_TEXT) {
          LOG_WRN("mtmd_encode_chunk has no effect for text chunks\n");
          return 0;
-@@ -1813,7 +1908,7 @@
+@@ -1976,7 +2081,7 @@
              LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
              return 1;
          }
@@ -2378,7 +2374,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      } else if (chunk->type == MTMD_INPUT_CHUNK_TYPE_AUDIO) {
          if (!ctx->ctx_a) {
              LOG_ERR("%s: model does not support audio input\n", __func__);
-@@ -1828,12 +1923,17 @@
+@@ -1991,12 +2096,17 @@
              return 1;
          }
          int n_mmproj_embd = ctx->n_embd_out();
@@ -2398,7 +2394,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
          return ok ? 0 : 1;
      }
  
-@@ -1844,7 +1944,7 @@
+@@ -2007,7 +2117,7 @@
  int32_t mtmd_encode_chunk(mtmd_context * ctx, const mtmd_input_chunk * chunk) {
      // this is the non-batching version
      try {
@@ -2407,7 +2403,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1853,7 +1953,7 @@
+@@ -2016,7 +2126,7 @@
  
  int32_t mtmd_encode(mtmd_context * ctx, const mtmd_image_tokens * image_tokens) {
      try {
@@ -2416,7 +2412,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -1861,7 +1961,12 @@
+@@ -2024,7 +2134,12 @@
  }
  
  float * mtmd_get_output_embd(mtmd_context * ctx) {
@@ -2430,7 +2426,7 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
  }
  
  //
-@@ -2134,7 +2239,8 @@
+@@ -2297,7 +2412,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
          batch_chunk.get(),
@@ -2440,9 +2436,8 @@ diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.cpp llama.cpp-0.4.
      return res;
  }
  
-diff -Nru -x '*.o' -x _OMV_rpm_build baseline/tools/mtmd/mtmd.h llama.cpp-0.4.0/tools/mtmd/mtmd.h
---- baseline/tools/mtmd/mtmd.h	2026-09-04 14:22:38.000000000 +0200
-+++ llama.cpp-0.4.0/tools/mtmd/mtmd.h	2026-09-06 03:47:31.252333996 +0200
+--- a/tools/mtmd/mtmd.h
++++ b/tools/mtmd/mtmd.h
 @@ -331,6 +331,9 @@
  // llama_model_n_embd_inp(model) * mtmd_input_chunk_get_n_tokens(chunk) * sizeof(float)
  MTMD_API float * mtmd_get_output_embd(mtmd_context * ctx);

@@ -4,8 +4,8 @@
 
 %global pypi_name gguf
 # vX.Y.Z GitHub releases only ship nightly-tag.txt; the prebuilt web UI
-# is attached to the matching nightly (b11429 for 0.6.0).
-%global nightly_tag b11429
+# is attached to the matching nightly (b11669 for 0.7.0).
+%global nightly_tag b11669
 
 # Out-of-tree cmake/ninja can leave empty debugsourcefiles.list; rpm then
 # fails on x86_64/aarch64. Keep -debuginfo; skip empty -debugsource.
@@ -29,8 +29,8 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		0.6.0
-Release:		2
+Version:		0.7.0
+Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
 URL:			https://github.com/ggml-org/llama.cpp
@@ -95,14 +95,19 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 # 0002: llama-export-lora used ggml_backend_cpu_init() which is not in
 #       libggml when backends are dlopen'd. Load CPU via the registry.
 # 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). Port of
-#       MichelRosselli's model/apertus-v1.5 work. 0.4.0 already uses
-#       mtmd serialization v2; token_prefix/row_separator/suffix bump
-#       that to v3. Empty tool-call args become {} in the 1.5 jinja.
+#       MichelRosselli's model/apertus-v1.5 work. 0.7.0 already uses
+#       mtmd serialization v3; token_prefix/row_separator/suffix are v4
+#       and are skipped when an older cache is loaded. Empty tool-call
+#       args become {} in the 1.5 jinja.
 # 0004: recover leftover <|tools_suffix|> / function-as-key JSON so
 #       the OpenAI API gets structured tool_calls instead of HTTP 500.
+#       Refreshed for the 0.7.0 common_chat_input parser.
 # 0005: Ollama 0.34.0 GGUF translation layer (llama/compat/). Load-time
 #       hooks only; OLLAMA_LLAMA_CPP_COMPAT=0 disables them. No-op on
 #       standard llama.cpp GGUFs.
+# 0006: system ggml 0.26 has no scheduler copy/realloc callbacks (ggml
+#       0.27, MoE expert cache). Detect them and skip the registration
+#       when they are missing.
 # 0.4.1 added unity-build / PCH lines that shift CMake context in 0005.
 %global _default_patch_fuzz 3
 
@@ -112,6 +117,7 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 0003-apertus-1.5.patch
 0004-apertus-tool-parse.patch
 0005-ollama-compat.patch
+0006-ggml-0.26-sched-callbacks.patch
 
 %description
 llama.cpp runs GGUF language (and vision) models. Tensor kernels come

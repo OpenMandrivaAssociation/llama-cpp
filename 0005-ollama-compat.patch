@@ -1,7 +1,11 @@
-diff -Nru a/src/CMakeLists.txt b/src/CMakeLists.txt
---- a/src/CMakeLists.txt	2026-09-04 14:22:38.000000000 +0200
-+++ b/src/CMakeLists.txt	2026-09-12 00:19:44.488344456 +0200
-@@ -54,7 +54,12 @@
+Ollama GGUF translation layer.
+
+Load-time hooks only. OLLAMA_LLAMA_CPP_COMPAT=0 disables them.
+No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
+
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -65,7 +65,12 @@
  
  configure_file(llama-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/llama-version.h @ONLY)
  
@@ -15,9 +19,8 @@ diff -Nru a/src/CMakeLists.txt b/src/CMakeLists.txt
  target_include_directories(llama PUBLIC ../include)
  target_compile_features   (llama PRIVATE cxx_std_17) # don't bump
  
-diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
---- a/src/llama-model-loader.cpp	2026-09-04 14:22:38.000000000 +0200
-+++ b/src/llama-model-loader.cpp	2026-09-12 00:19:35.937418054 +0200
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
 @@ -5,6 +5,7 @@
  #include "gguf.h"
  #include "llama-hparams.h"
@@ -26,7 +29,7 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
  
  #include <algorithm>
  #include <array>
-@@ -574,6 +575,9 @@
+@@ -575,6 +576,9 @@
          }
  
          get_key(llm_kv(LLM_KV_GENERAL_ARCHITECTURE), arch_name, false);
@@ -36,7 +39,7 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
          llm_kv = LLM_KV(llm_arch_from_string(arch_name));
  
          files.emplace_back(new llama_file(fname.c_str(), "rb", use_direct_io));
-@@ -584,6 +588,9 @@
+@@ -585,6 +589,9 @@
          // so we build a unified tensors index for weights.
          for (ggml_tensor * cur = ggml_get_first_tensor(ctx); cur; cur = ggml_get_next_tensor(ctx, cur)) {
              std::string tensor_name = std::string(cur->name);
@@ -46,7 +49,7 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
              // make sure there is no duplicated tensor names
              if (weights_map.find(tensor_name) != weights_map.end()) {
                  throw std::runtime_error(format("invalid model: tensor '%s' is duplicated", ggml_get_name(cur)));
-@@ -694,6 +701,9 @@
+@@ -702,6 +709,9 @@
          // Save tensors data offset info of the main file.
          for (ggml_tensor * cur = ggml_get_first_tensor(ctx); cur; cur = ggml_get_next_tensor(ctx, cur)) {
              std::string tensor_name = std::string(cur->name);
@@ -56,7 +59,7 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
              // make sure there is no duplicated tensor names
              if (weights_map.find(tensor_name) != weights_map.end()) {
                  throw std::runtime_error(format("invalid model: tensor '%s' is duplicated", ggml_get_name(cur)));
-@@ -1464,6 +1474,10 @@
+@@ -1531,6 +1541,10 @@
  const void * llama_model_loader::load_data_range(const llama_tensor_weight & w, size_t offs, size_t size, void * buf) const {
      GGML_ASSERT(offs + size <= ggml_nbytes(w.tensor));
  
@@ -67,7 +70,7 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
      const void * data = buf;
  
      if (use_mmap) {
-@@ -1629,6 +1643,7 @@
+@@ -1695,6 +1709,7 @@
          }
  
          size_t n_size = ggml_nbytes(cur);
@@ -75,9 +78,8 @@ diff -Nru a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
  
          const bool from_mapping = use_mmap || lazy.has(cur);
  
-diff -Nru a/src/ollama-compat/llama-ollama-compat-util.cpp b/src/ollama-compat/llama-ollama-compat-util.cpp
---- a/src/ollama-compat/llama-ollama-compat-util.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/src/ollama-compat/llama-ollama-compat-util.cpp	2026-09-12 00:19:35.940139466 +0200
+--- a/src/ollama-compat/llama-ollama-compat-util.cpp
++++ b/src/ollama-compat/llama-ollama-compat-util.cpp
 @@ -0,0 +1,412 @@
 +#include "llama-ollama-compat-util.h"
 +
@@ -491,9 +493,8 @@ diff -Nru a/src/ollama-compat/llama-ollama-compat-util.cpp b/src/ollama-compat/l
 +}
 +
 +} // namespace llama_ollama_compat::detail
-diff -Nru a/src/ollama-compat/llama-ollama-compat-util.h b/src/ollama-compat/llama-ollama-compat-util.h
---- a/src/ollama-compat/llama-ollama-compat-util.h	1970-01-01 01:00:00.000000000 +0100
-+++ b/src/ollama-compat/llama-ollama-compat-util.h	2026-09-12 00:19:35.940130156 +0200
+--- a/src/ollama-compat/llama-ollama-compat-util.h
++++ b/src/ollama-compat/llama-ollama-compat-util.h
 @@ -0,0 +1,138 @@
 +#pragma once
 +
@@ -633,9 +634,8 @@ diff -Nru a/src/ollama-compat/llama-ollama-compat-util.h b/src/ollama-compat/lla
 +                                 const std::vector<std::string> & src_names);
 +
 +} // namespace llama_ollama_compat::detail
-diff -Nru a/src/ollama-compat/llama-ollama-compat.cpp b/src/ollama-compat/llama-ollama-compat.cpp
---- a/src/ollama-compat/llama-ollama-compat.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/src/ollama-compat/llama-ollama-compat.cpp	2026-09-12 00:19:35.940088225 +0200
+--- a/src/ollama-compat/llama-ollama-compat.cpp
++++ b/src/ollama-compat/llama-ollama-compat.cpp
 @@ -0,0 +1,3512 @@
 +#include "llama-ollama-compat.h"
 +#include "llama-ollama-compat-util.h"
@@ -4149,9 +4149,8 @@ diff -Nru a/src/ollama-compat/llama-ollama-compat.cpp b/src/ollama-compat/llama-
 +}
 +
 +} // namespace llama_ollama_compat
-diff -Nru a/src/ollama-compat/llama-ollama-compat.h b/src/ollama-compat/llama-ollama-compat.h
---- a/src/ollama-compat/llama-ollama-compat.h	1970-01-01 01:00:00.000000000 +0100
-+++ b/src/ollama-compat/llama-ollama-compat.h	2026-09-12 00:19:35.940073995 +0200
+--- a/src/ollama-compat/llama-ollama-compat.h
++++ b/src/ollama-compat/llama-ollama-compat.h
 @@ -0,0 +1,104 @@
 +#pragma once
 +
@@ -4257,10 +4256,9 @@ diff -Nru a/src/ollama-compat/llama-ollama-compat.h b/src/ollama-compat/llama-ol
 +int maybe_clip_mmproj_embd(const char * projector_type, int projection_dim);
 +
 +} // namespace llama_ollama_compat
-diff -Nru a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
---- a/tools/mtmd/CMakeLists.txt	2026-09-12 00:18:42.744648108 +0200
-+++ b/tools/mtmd/CMakeLists.txt	2026-09-12 00:19:44.488344456 +0200
-@@ -85,6 +85,15 @@
+--- a/tools/mtmd/CMakeLists.txt
++++ b/tools/mtmd/CMakeLists.txt
+@@ -87,6 +87,15 @@
  target_link_libraries     (mtmd PUBLIC ggml llama)
  target_link_libraries     (mtmd PRIVATE Threads::Threads vendor::hash vendor::miniaudio vendor::stb vendor::sheredom)
  target_include_directories(mtmd PUBLIC  .)
@@ -4276,9 +4274,8 @@ diff -Nru a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
  target_compile_features   (mtmd PRIVATE cxx_std_17)
  
  if (MTMD_VIDEO)
-diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
---- a/tools/mtmd/clip.cpp	2026-09-12 00:18:42.745093683 +0200
-+++ b/tools/mtmd/clip.cpp	2026-09-12 00:19:35.937795098 +0200
+--- a/tools/mtmd/clip.cpp
++++ b/tools/mtmd/clip.cpp
 @@ -10,6 +10,8 @@
  #include "ggml-backend.h"
  #include "gguf.h"
@@ -4288,7 +4285,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
  #include <algorithm>
  #include <cassert>
  #include <cmath>
-@@ -1221,6 +1223,11 @@
+@@ -1257,6 +1259,11 @@
  
          ctx_meta.reset(meta);
  
@@ -4300,7 +4297,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
          const int n_tensors = gguf_get_n_tensors(ctx_gguf.get());
  
          // print gguf info
-@@ -3816,6 +3823,7 @@
+@@ -3959,6 +3966,7 @@
                      auto it_off = tensor_offset.find(t->name);
                      GGML_ASSERT(it_off != tensor_offset.end() && "no offset for tensor");
                      const size_t offset = it_off->second;
@@ -4308,7 +4305,7 @@ diff -Nru a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
                      fin.seekg(offset, std::ios::beg);
                      if (!fin) {
                          throw std::runtime_error(string_format("%s: failed to seek for tensor %s\n", __func__, t->name));
-@@ -6178,6 +6186,15 @@
+@@ -6376,6 +6384,15 @@
  }
  
  int clip_n_mmproj_embd(const struct clip_ctx * ctx) {

@@ -2,15 +2,14 @@ Fix Apertus tool parsing so leftover <|tools_suffix|> is not HTTP 500.
 
 The autoparser often drops the section closer. The model then emits
 <|tools_prefix|>[{"name": args}]<|tools_suffix|> and the PEG leftover
-became a 500 ("Stream resume produced no new bytes" in the web UI).
-
-Ignore leftover special-token closers, use section_end when the prefix
-was parked on per_call_start, and recover function-as-key JSON into
-OpenAI tool_calls.
+became a 500. Ignore leftover special-token closers, use section_end
+when the prefix was parked on per_call_start, and recover function-as-key
+JSON into OpenAI tool_calls. Refreshed for the 0.7.0 common_chat_input
+parser.
 
 --- a/common/chat.cpp
 +++ b/common/chat.cpp
-@@ -15,6 +15,7 @@
+@@ -17,6 +17,7 @@
  #include "peg-parser.h"
  
  #include <algorithm>
@@ -18,10 +17,11 @@ OpenAI tool_calls.
  #include <cstdio>
  #include <cstdlib>
  #include <ctime>
-@@ -3826,6 +3827,79 @@
+@@ -1602,6 +1603,80 @@
      return common_chat_peg_parse(params.parser, input, is_partial, params);
  }
  
++
 +// Apertus emits <|tools_prefix|>[{"name": args}]<|tools_suffix|>. The generated PEG
 +// often leaves the closer unparsed and does not map function-as-key JSON into
 +// tool_calls. Recover so the OpenAI API gets structured calls instead of a 500.
@@ -81,7 +81,7 @@ OpenAI tool_calls.
 +        for (const auto & el : item.items()) {
 +            common_chat_tool_call tc;
 +            tc.name      = el.key();
-+            tc.arguments = el.value().is_string() ? el.value().template get<std::string>() : el.value().dump();
++            tc.arguments = el.value().is_string() ? el.value().get<std::string>() : el.value().dump();
 +            msg.tool_calls.push_back(std::move(tc));
 +        }
 +    }
@@ -96,10 +96,10 @@ OpenAI tool_calls.
 +}
 +
  common_chat_msg common_chat_peg_parse(const common_peg_arena &          src_parser,
-                                       const std::string &               input,
+                                       const common_chat_input &         input,
                                        bool                              is_partial,
-@@ -3852,10 +3926,38 @@
-     common_peg_parse_context ctx(effective_input, flags);
+@@ -1628,10 +1703,38 @@
+     common_peg_parse_context ctx(std::move(effective_input.text), std::move(effective_input.tokens), flags);
      auto result = parser.parse(ctx);
  
 +    auto leftover_is_closer_tokens = [](const std::string & s) -> bool {
@@ -129,7 +129,7 @@ OpenAI tool_calls.
 +    };
 +
      if (result.fail()) {
-+        const std::string leftover = effective_input.substr(result.end);
++        const std::string leftover = ctx.input.substr(result.end);
 +        const bool ignore_closers = leftover_is_closer_tokens(leftover);
          // During partial parsing, return partial results if any AST nodes were captured
          // This allows streaming to work correctly for formats like FUNC_MARKDOWN_CODE_BLOCK
@@ -138,34 +138,34 @@ OpenAI tool_calls.
              // Try to extract any partial results from what was successfully parsed
              common_chat_msg msg;
              msg.role = "assistant";
-@@ -3868,6 +3970,7 @@
+@@ -1644,6 +1747,7 @@
                  mapper = std::make_unique<common_chat_peg_mapper>(msg);
              }
              mapper->from_ast(ctx.ast, result);
-+            recover_apertus_tool_calls(msg, input);
++            recover_apertus_tool_calls(msg, input.text);
  
              if (ctx.is_debug()) {
                  fprintf(stderr, "\nAST for partial parse (fail):\n%s\n", ctx.ast.dump().c_str());
-@@ -3875,7 +3978,7 @@
+@@ -1651,7 +1755,7 @@
              }
              return msg;
          }
--        LOG_WRN("%s: unparsed %s output: %s\n", __func__, common_chat_format_name(params.format), effective_input.substr(result.end).c_str());
+-        LOG_WRN("%s: unparsed %s output: %s\n", __func__, common_chat_format_name(params.format), ctx.input.substr(result.end).c_str());
 +        LOG_WRN("%s: unparsed %s output (%zu bytes): %s\n", __func__, common_chat_format_name(params.format), leftover.size(), leftover.c_str());
-         LOG_DBG("%s: full %s output triggering error:\n=== BEGIN ===\n%s\n=== END ===\n", __func__, common_chat_format_name(params.format), effective_input.c_str());
+         LOG_DBG("%s: full %s output triggering error:\n=== BEGIN ===\n%s\n=== END ===\n", __func__, common_chat_format_name(params.format), ctx.input.c_str());
          throw std::runtime_error(std::string("The model produced output that does not match the expected ") + common_chat_format_name(params.format) + " format");
      }
-@@ -3892,6 +3995,7 @@
+@@ -1668,6 +1772,7 @@
          mapper = std::make_unique<common_chat_peg_mapper>(msg);
      }
      mapper->from_ast(ctx.ast, result);
-+    recover_apertus_tool_calls(msg, input);
++    recover_apertus_tool_calls(msg, input.text);
  
      if (ctx.is_debug()) {
          fprintf(stderr, "\nAST for %s parse:\n%s\n", is_partial ? "partial" : "full", ctx.ast.dump().c_str());
 --- a/common/chat-auto-parser-generator.cpp
 +++ b/common/chat-auto-parser-generator.cpp
-@@ -227,8 +227,14 @@
+@@ -208,8 +208,14 @@
  
      auto tools_parser = p.eps();
      if (format.section_start.empty() && !format.per_call_start.empty()) {

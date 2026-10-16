@@ -1,0 +1,50 @@
+System ggml 0.26 has no scheduler copy or realloc hooks.
+
+Those landed in ggml 0.27 for the MoE expert cache. Detect them at
+configure time and leave them unregistered when they are absent, so
+llama.cpp 0.7.0 still builds against the packaged libggml.
+
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -75,6 +75,21 @@
+ target_compile_features   (llama PRIVATE cxx_std_17) # don't bump
+ 
+ target_link_libraries(llama PUBLIC ggml)
++
++# ggml 0.27: ggml_backend_sched_set_{copy,realloc}_callback, used by the
++# MoE expert cache. Cooker ggml 0.26 does not provide them.
++include(CheckCXXSourceCompiles)
++check_cxx_source_compiles("
++#include <ggml-backend.h>
++int main() {
++    ggml_backend_sched_set_copy_callback(nullptr, nullptr, nullptr);
++    ggml_backend_sched_set_realloc_callback(nullptr, nullptr, nullptr);
++    return 0;
++}
++" LLAMA_GGML_SCHED_COPY_CALLBACK)
++if (LLAMA_GGML_SCHED_COPY_CALLBACK)
++    target_compile_definitions(llama PRIVATE GGML_SCHED_COPY_CALLBACK)
++endif()
+ 
+ if (BUILD_SHARED_LIBS)
+     set_target_properties(llama PROPERTIES POSITION_INDEPENDENT_CODE ON)
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -708,8 +708,15 @@
+     sched.reset(ggml_backend_sched_new(
+             backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, parallel, cparams.op_offload));
+ 
+-    ggml_backend_sched_set_copy_callback(sched.get(), sched_copy_experts, this);
+-    ggml_backend_sched_set_realloc_callback(sched.get(), sched_graph_realloc, this);
++    // ggml 0.27 registers these so the MoE expert cache can intercept copies.
++    // System ggml 0.26 has neither hook; experts use the normal scheduler path.
++#if defined(GGML_SCHED_COPY_CALLBACK)
++    ggml_backend_sched_set_copy_callback(sched.get(), sched_copy_experts, this);
++    ggml_backend_sched_set_realloc_callback(sched.get(), sched_graph_realloc, this);
++#else
++    (void) &llama_context::sched_copy_experts;
++    (void) &llama_context::sched_graph_realloc;
++#endif
+ }
+ 
+ void llama_context::sched_reserve() {

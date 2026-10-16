@@ -1,4 +1,7 @@
-diff -ruN --no-dereference a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+Load the CPU backend through the ggml registry in llama-export-lora.
+
+ggml_backend_cpu_init() is not exported when backends are dlopen'd.
+
 --- a/tools/CMakeLists.txt
 +++ b/tools/CMakeLists.txt
 @@ -32,10 +32,10 @@
@@ -14,7 +17,6 @@ diff -ruN --no-dereference a/tools/CMakeLists.txt b/tools/CMakeLists.txt
      endif()
      add_subdirectory(fit-params)
      if (GGML_METAL)
-diff -ruN --no-dereference a/tools/export-lora/export-lora.cpp b/tools/export-lora/export-lora.cpp
 --- a/tools/export-lora/export-lora.cpp
 +++ b/tools/export-lora/export-lora.cpp
 @@ -1,5 +1,6 @@
