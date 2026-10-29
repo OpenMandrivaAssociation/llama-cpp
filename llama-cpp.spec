@@ -4,8 +4,8 @@
 
 %global pypi_name gguf
 # vX.Y.Z GitHub releases only ship nightly-tag.txt; the prebuilt web UI
-# is attached to the matching nightly (b11669 for 0.7.0).
-%global nightly_tag b11669
+# is attached to the matching nightly (b11960 for 0.8.0).
+%global nightly_tag b11960
 
 # Out-of-tree cmake/ninja can leave empty debugsourcefiles.list; rpm then
 # fails on x86_64/aarch64. Keep -debuginfo; skip empty -debugsource.
@@ -29,7 +29,7 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		0.7.0
+Version:		0.8.0
 Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
@@ -45,7 +45,7 @@ Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{nightly_tag}
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml) >= 0.26.0
+BuildRequires:	cmake(ggml) >= 0.28.0
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	pkgconfig(python3)
@@ -60,7 +60,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.26.0
+Requires:	%{mklibname ggml}%{?_isa} >= 0.28.0
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
@@ -79,6 +79,9 @@ BuildOption:	-DCMAKE_C_COMPILER=clang
 BuildOption:	-DCMAKE_CXX_COMPILER=clang++
 BuildOption:	-DBUILD_SHARED_LIBS:BOOL=ON
 BuildOption:	-DLLAMA_USE_SYSTEM_GGML:BOOL=ON
+# v0.8.0 is a release tag. Upstream defaults this ON, which stamps
+# the CMake package version as 0.8.0-dev.
+BuildOption:	-DLLAMA_BUILD_IS_DEV:BOOL=OFF
 BuildOption:	-DLLAMA_OPENSSL:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_COMMON:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_TOOLS:BOOL=ON
@@ -86,28 +89,33 @@ BuildOption:	-DLLAMA_BUILD_SERVER:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_APP:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_EXAMPLES=%{build_examples}
 BuildOption:	-DLLAMA_BUILD_TESTS=%{build_test}
-# Embed Source1 (extracted to tools/ui/dist in %prep). Do not run npm or
-# fetch Hugging Face assets — ABF builders have no network.
-BuildOption:	-DLLAMA_BUILD_UI:BOOL=ON
+# Embed Source1 (extracted to tools/ui/dist in %prep). scripts/ui-assets.cmake
+# uses that tree first and returns, ignoring the flags below. 0.8's
+# LLAMA_BUILD_UI means an npm build (default OFF). LLAMA_USE_PREBUILT_UI
+# means a Hugging Face download (default ON). Both stay OFF so a missing
+# dist cannot fall through to npm or the network. ABF builders are offline.
+BuildOption:	-DLLAMA_BUILD_UI:BOOL=OFF
 BuildOption:	-DLLAMA_USE_PREBUILT_UI:BOOL=OFF
 BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 
 # 0002: llama-export-lora used ggml_backend_cpu_init() which is not in
 #       libggml when backends are dlopen'd. Load CPU via the registry.
-# 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). Port of
-#       MichelRosselli's model/apertus-v1.5 work. 0.7.0 already uses
-#       mtmd serialization v3; token_prefix/row_separator/suffix are v4
-#       and are skipped when an older cache is loaded. Empty tool-call
-#       args become {} in the 1.5 jinja.
+# 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). 0.8.0
+#       already has Apertus text, not the discrete projectors. mtmd
+#       serialization is already v4 (audio-track slices), so
+#       token_prefix/row_separator/suffix are v5 and are skipped when
+#       an older cache is loaded. Empty tool-call args become {} in
+#       the 1.5 jinja.
 # 0004: recover leftover <|tools_suffix|> / function-as-key JSON so
 #       the OpenAI API gets structured tool_calls instead of HTTP 500.
-#       Refreshed for the 0.7.0 common_chat_input parser.
-# 0005: Ollama 0.34.0 GGUF translation layer (llama/compat/). Load-time
+#       Still applies on the 0.8.0 common_chat parser.
+# 0005: Ollama GGUF translation layer (src/ollama-compat/). Load-time
 #       hooks only; OLLAMA_LLAMA_CPP_COMPAT=0 disables them. No-op on
-#       standard llama.cpp GGUFs.
-# 0006: system ggml 0.26 has no scheduler copy/realloc callbacks (ggml
-#       0.27, MoE expert cache). Detect them and skip the registration
-#       when they are missing.
+#       standard llama.cpp GGUFs. ollama execs this llama-server.
+# 0006 dropped: 0.8 calls ggml_backend_sched_set_copy_callback and
+#       ggml_backend_sched_set_realloc_callback unconditionally, and
+#       libggml-base 0.28 exports both. The 0.26 detection shim is
+#       obsolete.
 # 0.4.1 added unity-build / PCH lines that shift CMake context in 0005.
 %global _default_patch_fuzz 3
 
@@ -117,7 +125,6 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 0003-apertus-1.5.patch
 0004-apertus-tool-parse.patch
 0005-ollama-compat.patch
-0006-ggml-0.26-sched-callbacks.patch
 
 %description
 llama.cpp runs GGUF language (and vision) models. Tensor kernels come
@@ -137,7 +144,7 @@ ships). Set OLLAMA_LLAMA_CPP_COMPAT=0 to disable.
 Summary:	Development files for %{name}
 Group:		Development/C++
 Requires:	%{name}%{?_isa} = %{EVRD}
-Requires:	cmake(ggml) >= 0.26.0
+Requires:	cmake(ggml) >= 0.28.0
 
 %description devel
 Headers, pkg-config and CMake package config for llama.cpp.

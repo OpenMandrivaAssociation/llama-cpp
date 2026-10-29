@@ -1,21 +1,23 @@
 Apertus 1.5 text model plus discrete vision and audio tokenizers.
 
-Refreshed for llama.cpp 0.7.0. Upstream mtmd serialization is already
-version 3, so the extra token prefix, row separator and suffix fields
-are version 4 and are skipped when an older cache is loaded.
+Upstream 0.8.0 already has Apertus text (LLM_ARCH_APERTUS) but not the
+1.5 discrete vision/audio tokenizers. mtmd serialization is already
+version 4 (audio-track slices), so token_prefix/row_separator/suffix
+are version 5 and are skipped when an older cache is loaded.
 
---- a/conversion/__init__.py
-+++ b/conversion/__init__.py
-@@ -20,6 +20,8 @@
-     "AfmoeForCausalLM": "afmoe",
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/__init__.py b/conversion/__init__.py
+--- a/conversion/__init__.py	2026-10-28 12:30:38.000000000 +0100
++++ b/conversion/__init__.py	2026-10-29 04:00:53.543874894 +0100
+@@ -22,6 +22,8 @@
      "LagunaForCausalLM": "laguna",
+     "FlintForCausalLM": "flint",
      "ApertusForCausalLM": "llama",
 +    "Apertus1p5ForConditionalGeneration": "llama",
 +    "Apertus1p5TextForCausalLM": "llama",
      "ArceeForCausalLM": "llama",
      "ArcticForCausalLM": "arctic",
      "AudioFlamingo3ForConditionalGeneration": "qwen",
-@@ -307,6 +309,7 @@
+@@ -324,6 +326,7 @@
  
  
  MMPROJ_MODEL_MAP: dict[str, str] = {
@@ -23,8 +25,9 @@ are version 4 and are skipped when an older cache is loaded.
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
      "ClefModel": "clef",
      "CogVLMForCausalLM": "cogvlm",
---- a/conversion/llama.py
-+++ b/conversion/llama.py
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/llama.py b/conversion/llama.py
+--- a/conversion/llama.py	2026-10-28 12:30:38.000000000 +0100
++++ b/conversion/llama.py	2026-10-29 03:55:23.349056317 +0100
 @@ -11,7 +11,7 @@
  if TYPE_CHECKING:
      from torch import Tensor
@@ -34,7 +37,7 @@ are version 4 and are skipped when an older cache is loaded.
  
  
  @ModelBase.register(
-@@ -464,3 +464,150 @@
+@@ -465,3 +465,150 @@
              return
  
          yield from super().modify_tensors(data_torch, name, bid)
@@ -185,8 +188,9 @@ are version 4 and are skipped when an older cache is loaded.
 +        if name == "model.audio_tokenizer.quantizer.codebook.embed":
 +            yield "a.codebook.weight", data_torch
 +            return
---- a/gguf-py/gguf/constants.py
-+++ b/gguf-py/gguf/constants.py
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
+--- a/gguf-py/gguf/constants.py	2026-10-28 12:30:38.000000000 +0100
++++ b/gguf-py/gguf/constants.py	2026-10-29 03:55:23.349567251 +0100
 @@ -107,6 +107,7 @@
  
      class LLM:
@@ -195,7 +199,7 @@ are version 4 and are skipped when an older cache is loaded.
          CONTEXT_LENGTH                    = "{arch}.context_length"
          EMBEDDING_LENGTH                  = "{arch}.embedding_length"
          EMBEDDING_LENGTH_OUT              = "{arch}.embedding_length_out"
-@@ -438,6 +439,13 @@
+@@ -459,6 +460,13 @@
          WINDOW_SIZE           = "clip.vision.window_size"
          FEATURE_LAYERS        = "clip.vision.feature_layer" # Granite4 Vision
          IMAGE_GRID_PINPOINTS  = "clip.vision.image_grid_pinpoints" # Granite4 Vision
@@ -209,7 +213,7 @@ are version 4 and are skipped when an older cache is loaded.
  
          class Attention:
              HEAD_COUNT      = "clip.vision.attention.head_count"
-@@ -474,6 +482,15 @@
+@@ -498,6 +506,15 @@
          WINDOW_SIZE         = "clip.audio.window_size"
          LOCAL_BLOCK_COUNT   = "clip.audio.local_block_count" # mimo-v2.5: input_local_transformer layer count
          LOCAL_GROUP_SIZE    = "clip.audio.local_group_size"  # mimo-v2.5: input_local_transformer grouping size
@@ -225,7 +229,7 @@ are version 4 and are skipped when an older cache is loaded.
  
          class Attention:
              HEAD_COUNT      = "clip.audio.attention.head_count"
-@@ -6280,6 +6297,8 @@
+@@ -6618,6 +6635,8 @@
      MIMO_AUDIO     = "mimo_audio"
      GRANITE4_VISION = "granite4_vision"
      MUSE_GLIMMER   = "muse-glimmer"
@@ -234,8 +238,9 @@ are version 4 and are skipped when an older cache is loaded.
      COHERE2V       = "cohere2v"
      D1OMNI_V       = "d1omni_v"  # lfm2 vision, without separator tokens
      D1OMNI_A       = "d1omni_a"  # lfm2a audio, with a residual block after the projector
---- a/gguf-py/gguf/gguf_writer.py
-+++ b/gguf-py/gguf/gguf_writer.py
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
+--- a/gguf-py/gguf/gguf_writer.py	2026-10-28 12:30:38.000000000 +0100
++++ b/gguf-py/gguf/gguf_writer.py	2026-10-29 03:55:23.350015305 +0100
 @@ -695,6 +695,9 @@
      def add_vocab_size(self, size: int) -> None:
          self.add_uint32(Keys.LLM.VOCAB_SIZE.format(arch=self.arch), size)
@@ -246,7 +251,7 @@ are version 4 and are skipped when an older cache is loaded.
      def add_context_length(self, length: int) -> None:
          self.add_uint32(Keys.LLM.CONTEXT_LENGTH.format(arch=self.arch), length)
  
-@@ -1547,6 +1550,27 @@
+@@ -1599,6 +1602,27 @@
      def add_vision_image_grid_pinpoints(self, layers: Sequence[Sequence[int]]) -> None:
          self.add_array(Keys.ClipVision.IMAGE_GRID_PINPOINTS, layers)
  
@@ -274,7 +279,7 @@ are version 4 and are skipped when an older cache is loaded.
      def add_vision_sam_layers_count(self, value: int) -> None:
          self.add_uint32(Keys.ClipVision.SAM.BLOCK_COUNT, value)
  
-@@ -1579,6 +1603,33 @@
+@@ -1637,6 +1661,33 @@
      def add_audio_attention_layernorm_eps(self, value: float) -> None:
          self.add_float32(Keys.ClipAudio.Attention.LAYERNORM_EPS, value)
  
@@ -308,8 +313,9 @@ are version 4 and are skipped when an older cache is loaded.
      def add_audio_num_mel_bins(self, value: int) -> None:
          self.add_uint32(Keys.ClipAudio.NUM_MEL_BINS, value)
  
---- a/models/templates/swiss-ai-Apertus-v1.5.jinja
-+++ b/models/templates/swiss-ai-Apertus-v1.5.jinja
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swiss-ai-Apertus-v1.5.jinja
+--- a/models/templates/swiss-ai-Apertus-v1.5.jinja	1970-01-01 01:00:00.000000000 +0100
++++ b/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-10-29 03:55:23.350288497 +0100
 @@ -0,0 +1,374 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
@@ -685,9 +691,10 @@ are version 4 and are skipped when an older cache is loaded.
 +{%- if add_generation_prompt -%}
 +    {{ assistant_token }}
 +{%- endif -%}
---- a/src/llama-arch.cpp
-+++ b/src/llama-arch.cpp
-@@ -197,6 +197,7 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.cpp b/src/llama-arch.cpp
+--- a/src/llama-arch.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/src/llama-arch.cpp	2026-10-29 03:55:23.350399158 +0100
+@@ -205,6 +205,7 @@
      { LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,           "general.tensor_extra.prec_a4"          },
  
      { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
@@ -695,7 +702,7 @@ are version 4 and are skipped when an older cache is loaded.
      { LLM_KV_CONTEXT_LENGTH,                    "%s.context_length"                    },
      { LLM_KV_EMBEDDING_LENGTH,                  "%s.embedding_length"                  },
      { LLM_KV_EMBEDDING_LENGTH_OUT,              "%s.embedding_length_out"              },
-@@ -1266,6 +1267,7 @@
+@@ -1323,6 +1324,7 @@
  
  bool llm_arch_supports_sm_tensor(const llm_arch & arch) {
      switch (arch) {
@@ -703,9 +710,10 @@ are version 4 and are skipped when an older cache is loaded.
          case LLM_ARCH_GROK:
          case LLM_ARCH_MPT:
          case LLM_ARCH_PLAMO2:
---- a/src/llama-arch.h
-+++ b/src/llama-arch.h
-@@ -202,6 +202,7 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.h b/src/llama-arch.h
+--- a/src/llama-arch.h	2026-10-28 12:30:38.000000000 +0100
++++ b/src/llama-arch.h	2026-10-29 03:55:23.350584749 +0100
+@@ -209,6 +209,7 @@
      LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,
  
      LLM_KV_VOCAB_SIZE,
@@ -713,9 +721,10 @@ are version 4 and are skipped when an older cache is loaded.
      LLM_KV_CONTEXT_LENGTH,
      LLM_KV_EMBEDDING_LENGTH,
      LLM_KV_EMBEDDING_LENGTH_OUT,
---- a/src/llama-hparams.h
-+++ b/src/llama-hparams.h
-@@ -271,6 +271,9 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-hparams.h b/src/llama-hparams.h
+--- a/src/llama-hparams.h	2026-10-28 12:30:38.000000000 +0100
++++ b/src/llama-hparams.h	2026-10-29 03:55:23.350697300 +0100
+@@ -274,6 +274,9 @@
      float    lilicorr_vector_eps     = 0.0f;
      float    lilicorr_logit_scale    = 0.0f;
  
@@ -725,9 +734,10 @@ are version 4 and are skipped when an older cache is loaded.
      // llama4 smallthinker
      uint32_t n_moe_layer_step        = 0;
      uint32_t n_no_rope_layer_step    = 4;
---- a/src/llama-model.cpp
-+++ b/src/llama-model.cpp
-@@ -1366,6 +1366,7 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-model.cpp b/src/llama-model.cpp
+--- a/src/llama-model.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/src/llama-model.cpp	2026-10-29 03:55:23.350946322 +0100
+@@ -1395,6 +1395,7 @@
      }
  
      ml.get_key(LLM_KV_CONTEXT_LENGTH,          hparams.n_ctx_train);
@@ -735,8 +745,9 @@ are version 4 and are skipped when an older cache is loaded.
      ml.get_key(LLM_KV_EMBEDDING_LENGTH,        hparams.n_embd);
      ml.get_key(LLM_KV_EMBEDDING_LENGTH_OUT,    hparams.n_embd_out_impl, false);
      ml.get_key(LLM_KV_ATTENTION_CAUSAL,        hparams.causal_attn,     false);
---- a/src/models/apertus.cpp
-+++ b/src/models/apertus.cpp
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/models/apertus.cpp b/src/models/apertus.cpp
+--- a/src/models/apertus.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/src/models/apertus.cpp	2026-10-29 03:55:23.351227635 +0100
 @@ -1,4 +1,5 @@
  #include "models.h"
 +#include <float.h>
@@ -787,8 +798,9 @@ are version 4 and are skipped when an older cache is loaded.
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  }
---- a/tools/mtmd/CMakeLists.txt
-+++ b/tools/mtmd/CMakeLists.txt
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
+--- a/tools/mtmd/CMakeLists.txt	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/CMakeLists.txt	2026-10-29 03:55:23.351295365 +0100
 @@ -29,6 +29,8 @@
              clip-graph.h
              models/models.h
@@ -798,9 +810,10 @@ are version 4 and are skipped when an older cache is loaded.
              models/conformer.cpp
              models/deepseek4v.cpp
              models/dots3note.cpp
---- a/tools/mtmd/clip-impl.h
-+++ b/tools/mtmd/clip-impl.h
-@@ -52,6 +52,13 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
+--- a/tools/mtmd/clip-impl.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/clip-impl.h	2026-10-29 04:00:53.544029595 +0100
+@@ -54,6 +54,13 @@
  #define KEY_IMAGE_SIZE              "clip.vision.image_size"
  #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
  #define KEY_IMAGE_MAX_PIXELS        "clip.vision.image_max_pixels"
@@ -814,7 +827,7 @@ are version 4 and are skipped when an older cache is loaded.
  #define KEY_PREPROC_MIN_TILES       "clip.vision.preproc_min_tiles"
  #define KEY_PREPROC_MAX_TILES       "clip.vision.preproc_max_tiles"
  #define KEY_PREPROC_IMAGE_SIZE      "clip.vision.preproc_image_size"
-@@ -91,6 +98,15 @@
+@@ -98,6 +105,15 @@
  #define KEY_A_PROJ_HEAD_COUNT      "clip.audio.projector.head_count"
  #define KEY_A_RVQ_NUM_QUANTIZERS   "clip.audio.rvq.num_quantizers"   // mimo-audio-tokenizer
  #define KEY_A_RVQ_CODEBOOK_SIZE    "clip.audio.rvq.codebook_size"    // mimo-audio-tokenizer: per-quantizer bin count
@@ -830,7 +843,7 @@ are version 4 and are skipped when an older cache is loaded.
  #define KEY_A_WA_PATTERN_MODE      "clip.audio.wa_pattern_mode"      // mimo-audio-tokenizer, per-layer -1 (full) / 0 (windowed)
  #define KEY_A_ATTN_WINDOW_SIZE     "clip.audio.window_size"          // mimo-audio-tokenizer: sliding-window radius
  #define KEY_A_LOCAL_BLOCK_COUNT    "clip.audio.local_block_count"    // mimo-v2.5: input_local_transformer layer count
-@@ -445,6 +461,22 @@
+@@ -502,6 +518,22 @@
  // TODO: improve this later
  struct clip_ctx;
  
@@ -853,7 +866,7 @@ are version 4 and are skipped when an older cache is loaded.
  enum projector_type {
      PROJECTOR_TYPE_MLP,
      PROJECTOR_TYPE_MLP_NORM,
-@@ -508,6 +540,8 @@
+@@ -570,6 +602,8 @@
      PROJECTOR_TYPE_MIMOVL,
      PROJECTOR_TYPE_MINIMAX_M3,
      PROJECTOR_TYPE_GRANITE4_VISION,
@@ -862,7 +875,7 @@ are version 4 and are skipped when an older cache is loaded.
      PROJECTOR_TYPE_MIMO_AUDIO,
      PROJECTOR_TYPE_QWEN3TTS_SPKENC,
      PROJECTOR_TYPE_QWEN3TTS_GEN,
-@@ -573,6 +607,8 @@
+@@ -643,6 +677,8 @@
      { PROJECTOR_TYPE_NEMOTRON_OMNI,     "nemotron_omni"},
      { PROJECTOR_TYPE_EXAONE4_5,         "exaone4_5"},
      { PROJECTOR_TYPE_HUNYUANVL,         "hunyuanvl"},
@@ -870,10 +883,11 @@ are version 4 and are skipped when an older cache is loaded.
 +    { PROJECTOR_TYPE_APERTUS_AUDIO,     "apertus_audio"},
      { PROJECTOR_TYPE_MINICPMV4_6,       "minicpmv4_6"},
      { PROJECTOR_TYPE_MINICPMV4_7,       "minicpmv4_7"},
-     { PROJECTOR_TYPE_GRANITE_SPEECH,    "granite_speech"},
---- a/tools/mtmd/clip-model.h
-+++ b/tools/mtmd/clip-model.h
-@@ -122,6 +122,19 @@
+     { PROJECTOR_TYPE_MINICPM_OCR_1_0,   "minicpm_ocr_1_0"},
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
+--- a/tools/mtmd/clip-model.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/clip-model.h	2026-10-29 04:00:53.544162046 +0100
+@@ -128,6 +128,19 @@
      int32_t muse_glimmer_patch_temporal = 0;
      int32_t muse_glimmer_sparse_factor  = 0;
  
@@ -893,10 +907,11 @@ are version 4 and are skipped when an older cache is loaded.
      // audio
      int32_t n_mel_bins = 0; // whisper preprocessor
      int32_t proj_stack_factor = 0; // ultravox
-@@ -558,6 +571,57 @@
-     ggml_tensor * dac_post_conv_b      = nullptr;
+@@ -615,6 +628,58 @@
+     std::vector<clip_code2wav::upsample_block> blocks;
  };
  
++
 +struct apertus_vision_resblock {
 +    ggml_tensor * norm1_w = nullptr;
 +    ggml_tensor * norm1_b = nullptr;
@@ -951,7 +966,7 @@ are version 4 and are skipped when an older cache is loaded.
  struct clip_model {
      clip_modality modality = CLIP_MODALITY_VISION;
      projector_type proj_type = PROJECTOR_TYPE_MLP;
-@@ -572,6 +636,27 @@
+@@ -629,6 +694,27 @@
      ggml_tensor * norm_embd_w = nullptr;
      ggml_tensor * norm_embd_b = nullptr;
  
@@ -979,8 +994,9 @@ are version 4 and are skipped when an older cache is loaded.
      // "indexed" patch embedding norms
      ggml_tensor * patch_norm_1_w = nullptr;
      ggml_tensor * patch_norm_1_b = nullptr;
---- a/tools/mtmd/clip.cpp
-+++ b/tools/mtmd/clip.cpp
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
+--- a/tools/mtmd/clip.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/clip.cpp	2026-10-29 04:00:53.555681012 +0100
 @@ -14,6 +14,7 @@
  #include <cassert>
  #include <cmath>
@@ -989,17 +1005,18 @@ are version 4 and are skipped when an older cache is loaded.
  #include <cstring>
  #include <fstream>
  #include <map>
-@@ -174,6 +175,9 @@
+@@ -174,6 +175,10 @@
  
      bool support_batch = false;
  
++    // kept across ensure_graph_capacity() rebuilds
 +    ggml_backend_sched_eval_callback cb_eval = nullptr;
 +    void * cb_eval_user_data = nullptr;
 +
-     // for audio gen, reseeded only when the caller asks for another seed
-     std::mt19937 rng{std::random_device{}()};
-     uint32_t rng_seed = UINT32_MAX;
-@@ -221,8 +225,10 @@
+     clip_ctx(clip_context_params & ctx_params) {
+         flash_attn_type = ctx_params.flash_attn_type;
+         no_alloc = ctx_params.no_alloc;
+@@ -217,8 +222,10 @@
              ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), 8192, false, true)
          );
  
@@ -1012,7 +1029,7 @@ are version 4 and are skipped when an older cache is loaded.
          }
  
          debug_output_embeddings = std::getenv("MTMD_DEBUG_EMBEDDINGS") != nullptr;
-@@ -239,6 +245,21 @@
+@@ -235,6 +242,21 @@
      projector_type proj_type() const {
          return model.proj_type;
      }
@@ -1034,7 +1051,7 @@ are version 4 and are skipped when an older cache is loaded.
  };
  
  //
-@@ -1021,6 +1042,14 @@
+@@ -1055,6 +1077,14 @@
              {
                  builder = std::make_unique<clip_graph_muse_glimmer>(ctx, img);
              } break;
@@ -1049,7 +1066,7 @@ are version 4 and are skipped when an older cache is loaded.
          case PROJECTOR_TYPE_STEP3VL:
              {
                  builder = std::make_unique<clip_graph_step3vl>(ctx, img);
-@@ -1786,6 +1815,22 @@
+@@ -1987,6 +2017,22 @@
                          hparams.set_limit_image_tokens(1, 4096);
                          hparams.set_warmup_n_tokens(32*32);
                      } break;
@@ -1072,7 +1089,7 @@ are version 4 and are skipped when an older cache is loaded.
                  case PROJECTOR_TYPE_MIMOVL:
                      {
                          hparams.n_merge = 2; // spatial_merge_size
-@@ -2072,6 +2117,20 @@
+@@ -2340,6 +2386,20 @@
                          hparams.eps               = 1e-6f;
                          hparams.n_mel_bins        = 640;
                      } break;
@@ -1093,30 +1110,30 @@ are version 4 and are skipped when an older cache is loaded.
                  case PROJECTOR_TYPE_GRANITE_SPEECH:
                      {
                          hparams.audio_chunk_len        = 0;
-@@ -2188,7 +2247,8 @@
-                 // checks below do not apply to it.
-                 // pocket-tts is encoder-free in the same sense: mimi convolves the raw waveform
+@@ -2458,7 +2518,8 @@
+                 // Muse Spark is encoder-free in the same sense: its conv pyramid reads the raw waveform, one channel takes the place of the mel bins
                  const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
+                                        model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
 -                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC;
 +                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC &&
 +                                       model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO;
  
                  // Validate audio hparams loaded from GGUF metadata
                  if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-@@ -2348,7 +2408,9 @@
-         const bool has_standard_layers = (
-             model.proj_type != PROJECTOR_TYPE_GEMMA3NV &&
+@@ -2623,7 +2684,9 @@
              model.proj_type != PROJECTOR_TYPE_QWEN3TTS_SPKENC &&
--            model.proj_type != PROJECTOR_TYPE_POCKETTTS_GEN);
-+            model.proj_type != PROJECTOR_TYPE_POCKETTTS_GEN &&
+             model.proj_type != PROJECTOR_TYPE_POCKETTTS_GEN &&
+             model.proj_type != PROJECTOR_TYPE_SOPRANO &&
+-            model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO);
++            model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
 +            model.proj_type != PROJECTOR_TYPE_APERTUS_VISION &&
 +            model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO);
  
          // layers
          const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
-@@ -3720,6 +3782,151 @@
-                     }
- 
+@@ -4189,6 +4252,152 @@
+                     model.mm_0_w = get_tensor(string_format(TN_LLAVA_PROJ, 0, "weight"));
+                     model.mm_0_b = get_tensor(string_format(TN_LLAVA_PROJ, 0, "bias"));
                  } break;
 +            case PROJECTOR_TYPE_APERTUS_VISION:
 +                {
@@ -1207,7 +1224,8 @@ are version 4 and are skipped when an older cache is loaded.
 +                        }
 +                        return consumed == (int) name.size();
 +                    };
-+                    for (const auto & [name, _] : tensor_offset) {
++                    for (const auto & [name, offset] : tensor_offset) {
++                        (void) offset;
 +                        int id = -1;
 +                        if (full_match(name, "a.encoder.layers.%d.conv.weight%n", id)) {
 +                            conv_layer_ids.push_back(id);
@@ -1266,7 +1284,7 @@ are version 4 and are skipped when an older cache is loaded.
              default:
                  GGML_ASSERT(false && "unknown projector type");
          }
-@@ -3810,7 +4017,8 @@
+@@ -4279,7 +4488,8 @@
          } else {
              // GEMMA4UA uses n_mel_bins as a raw-waveform frame size (640), not a mel-bin count,
              // so the [1, 256] bound only applies to FFT-based models.
@@ -1276,25 +1294,25 @@ are version 4 and are skipped when an older cache is loaded.
              if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
                  throw std::runtime_error(string_format("%s: invalid n_mel_bins (%d), must be in [1, 256]\n", __func__, hparams.n_mel_bins));
              }
-@@ -4203,6 +4411,8 @@
-         case PROJECTOR_TYPE_YOUTUVL:
+@@ -4679,6 +4889,8 @@
          case PROJECTOR_TYPE_MUSE_GLIMMER:
+         case PROJECTOR_TYPE_LFM3VL:
              return (img->nx() / params.patch_size) / 2;
 +        case PROJECTOR_TYPE_APERTUS_VISION:
 +            return img->nx() / params.vision_spatial_factor;
          case PROJECTOR_TYPE_STEP3VL:
          case PROJECTOR_TYPE_MINICPMV4_6:
          case PROJECTOR_TYPE_MINICPMV4_7:
-@@ -4233,6 +4443,8 @@
-         case PROJECTOR_TYPE_YOUTUVL:
+@@ -4712,6 +4924,8 @@
          case PROJECTOR_TYPE_MUSE_GLIMMER:
+         case PROJECTOR_TYPE_LFM3VL:
              return (img->ny() / params.patch_size) / 2;
 +        case PROJECTOR_TYPE_APERTUS_VISION:
 +            return img->ny() / params.vision_spatial_factor;
          case PROJECTOR_TYPE_STEP3VL:
          case PROJECTOR_TYPE_MINICPMV4_6:
          case PROJECTOR_TYPE_MINICPMV4_7:
-@@ -4550,6 +4762,15 @@
+@@ -5052,6 +5266,15 @@
                      n_patches += h * (w + 1);
                  }
              } break;
@@ -1310,7 +1328,7 @@ are version 4 and are skipped when an older cache is loaded.
          default:
              GGML_ABORT("unsupported projector type");
      }
-@@ -4559,19 +4780,21 @@
+@@ -5061,19 +5284,21 @@
      return n_patches;
  }
  
@@ -1335,7 +1353,7 @@ are version 4 and are skipped when an older cache is loaded.
  
      return clip_encode(ctx, &params);
  }
-@@ -4589,6 +4812,16 @@
+@@ -5219,6 +5444,16 @@
      const clip_image_f32_batch & imgs = *params->imgs;
      int n_batch_cur = imgs.entries.size();
  
@@ -1352,7 +1370,17 @@ are version 4 and are skipped when an older cache is loaded.
      // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
      if (!ctx->support_batch && n_batch_cur > clip_model_n_temporal_merge(ctx)) {
          LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, clip_model_n_temporal_merge(ctx));
-@@ -4768,6 +5001,11 @@
+@@ -5241,7 +5476,8 @@
+ 
+     // the last node is the embedding tensor, code2wav has no out_embd
+     // read it before scheduling: backends may reorder the nodes of graphs with several outputs (Metal)
+-    ggml_tensor * embeddings = params->out_embd ? ggml_graph_node(gf, -1) : nullptr;
++    ggml_tensor * output = ggml_graph_node(gf, -1);
++    ggml_tensor * embeddings = (!clip_outputs_tokens(ctx) && params->out_embd) ? output : nullptr;
+ 
+     if (!ggml_backend_sched_alloc_graph(ctx->sched.get(), gf)) {
+         LOG_ERR("%s: failed to allocate compute graph\n", __func__);
+@@ -5420,6 +5656,11 @@
  
      // set input per projector
      switch (ctx->model.proj_type) {
@@ -1361,15 +1389,13 @@ are version 4 and are skipped when an older cache is loaded.
 +            {
 +                // These encoders only require inp_raw.
 +            } break;
-         case PROJECTOR_TYPE_MUSE_GLIMMER:
+         case PROJECTOR_TYPE_VOXTRAL_RT:
              {
-                 const int grid_w = pos_w;            // image_size_width  / patch_size
-@@ -5950,8 +6188,39 @@
+                 clip_enc_state * st = params->enc_state;
+@@ -6777,6 +7018,35 @@
          return false;
      }
  
-+    ggml_tensor * output = ggml_graph_node(gf, -1);
-+
 +    if (clip_outputs_tokens(ctx)) {
 +        if (output->type != GGML_TYPE_I32) {
 +            LOG_ERR("%s: expected token ID output, got %s\n", __func__, ggml_type_name(output->type));
@@ -1399,14 +1425,11 @@ are version 4 and are skipped when an older cache is loaded.
 +        return true;
 +    }
 +
-     // the last node is the embedding tensor, code2wav has no out_embd
--    ggml_tensor * embeddings = params->out_embd ? ggml_graph_node(gf, -1) : nullptr;
-+    ggml_tensor * embeddings = params->out_embd ? output : nullptr;
- 
      if (embeddings != nullptr) {
          // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
-@@ -6214,11 +6483,19 @@
-             return ctx->model.gen_input_lin_w->ne[1];
+         const int n_tokens_out = embeddings->ne[1];
+@@ -7070,11 +7340,19 @@
+             return ctx->model.hparams.projection_dim;
          case PROJECTOR_TYPE_PARAKEET:
              return ctx->model.mm_1_w->ne[1];
 +        case PROJECTOR_TYPE_APERTUS_VISION:
@@ -1425,9 +1448,10 @@ are version 4 and are skipped when an older cache is loaded.
  bool clip_is_llava(const struct clip_ctx * ctx) {
      return ctx->model.hparams.has_llava_projector;
  }
---- a/tools/mtmd/clip.h
-+++ b/tools/mtmd/clip.h
-@@ -87,8 +87,8 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip.h b/tools/mtmd/clip.h
+--- a/tools/mtmd/clip.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/clip.h	2026-10-29 03:55:23.353257411 +0100
+@@ -89,8 +89,8 @@
  int clip_n_mmproj_embd(const struct clip_ctx * ctx);
  
  // TODO: remove clip_image_encode() and always use batched version
@@ -1438,7 +1462,7 @@ are version 4 and are skipped when an older cache is loaded.
  
  enum clip_gen_process_type {
      CLIP_GEN_PROCESS_GEN_UNKNOWN,
-@@ -99,6 +99,7 @@
+@@ -101,6 +101,7 @@
      int n_threads = 1;
      const clip_image_f32_batch * imgs = nullptr;
      std::vector<float> * out_embd = nullptr;
@@ -1446,7 +1470,7 @@ are version 4 and are skipped when an older cache is loaded.
  
      // for audio gen, imgs has exactly one entry: hidden state from backbone (GEN_CODE) or unused (GEN_WAV)
      clip_gen_process_type gen_process = CLIP_GEN_PROCESS_GEN_UNKNOWN;
-@@ -128,6 +129,7 @@
+@@ -145,6 +146,7 @@
  
  bool clip_has_vision_encoder(const struct clip_ctx * ctx);
  bool clip_has_audio_encoder(const struct clip_ctx * ctx);
@@ -1454,8 +1478,9 @@ are version 4 and are skipped when an older cache is loaded.
  
  bool clip_support_batch(const struct clip_ctx * ctx);
  
---- a/tools/mtmd/models/apertus-audio.cpp
-+++ b/tools/mtmd/models/apertus-audio.cpp
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-audio.cpp b/tools/mtmd/models/apertus-audio.cpp
+--- a/tools/mtmd/models/apertus-audio.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/tools/mtmd/models/apertus-audio.cpp	2026-10-29 03:55:23.353381292 +0100
 @@ -0,0 +1,210 @@
 +#include "models.h"
 +
@@ -1667,8 +1692,9 @@ are version 4 and are skipped when an older cache is loaded.
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
---- a/tools/mtmd/models/apertus-vision.cpp
-+++ b/tools/mtmd/models/apertus-vision.cpp
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-vision.cpp b/tools/mtmd/models/apertus-vision.cpp
+--- a/tools/mtmd/models/apertus-vision.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/tools/mtmd/models/apertus-vision.cpp	2026-10-29 03:55:23.353467843 +0100
 @@ -0,0 +1,158 @@
 +#include "models.h"
 +
@@ -1828,9 +1854,10 @@ are version 4 and are skipped when an older cache is loaded.
 +    ggml_build_forward_expand(gf, codes);
 +    return gf;
 +}
---- a/tools/mtmd/models/models.h
-+++ b/tools/mtmd/models/models.h
-@@ -450,3 +450,13 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/models.h b/tools/mtmd/models/models.h
+--- a/tools/mtmd/models/models.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/models/models.h	2026-10-29 03:55:23.353528674 +0100
+@@ -519,3 +519,13 @@
      clip_graph_muse_glimmer(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
      ggml_cgraph * build() override;
  };
@@ -1844,9 +1871,10 @@ are version 4 and are skipped when an older cache is loaded.
 +    clip_graph_apertus_audio(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
---- a/tools/mtmd/mtmd-audio.cpp
-+++ b/tools/mtmd/mtmd-audio.cpp
-@@ -1456,6 +1456,45 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.cpp b/tools/mtmd/mtmd-audio.cpp
+--- a/tools/mtmd/mtmd-audio.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-audio.cpp	2026-10-29 03:55:23.353674015 +0100
+@@ -1536,6 +1536,45 @@
  }
  
  //
@@ -1892,9 +1920,10 @@ are version 4 and are skipped when an older cache is loaded.
  // mtmd_audio_streaming_istft implementation
  //
  
---- a/tools/mtmd/mtmd-audio.h
-+++ b/tools/mtmd/mtmd-audio.h
-@@ -110,6 +110,14 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.h b/tools/mtmd/mtmd-audio.h
+--- a/tools/mtmd/mtmd-audio.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-audio.h	2026-10-29 03:55:23.353812726 +0100
+@@ -128,6 +128,14 @@
      bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
  };
  
@@ -1909,9 +1938,10 @@ are version 4 and are skipped when an older cache is loaded.
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
      mtmd_audio_preprocessor_qwen3a(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
      void initialize() override;
---- a/tools/mtmd/mtmd-helper.cpp
-+++ b/tools/mtmd/mtmd-helper.cpp
-@@ -199,6 +199,62 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
+--- a/tools/mtmd/mtmd-helper.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-helper.cpp	2026-10-29 03:55:23.353930437 +0100
+@@ -201,6 +201,62 @@
      return 0;
  }
  
@@ -1974,7 +2004,7 @@ are version 4 and are skipped when an older cache is loaded.
  int32_t mtmd_helper_eval_chunk_single(mtmd_context * ctx,
          struct llama_context * lctx,
          const mtmd_input_chunk * chunk,
-@@ -254,8 +310,16 @@
+@@ -256,8 +312,16 @@
  
          LOG_INF("%s slice encoded in %" PRId64 " ms\n", name, ggml_time_ms() - t0);
  
@@ -1993,9 +2023,10 @@ are version 4 and are skipped when an older cache is loaded.
          if (ret != 0) {
              LOG_ERR("failed to decode %s\n", name);
              return ret;
---- a/tools/mtmd/mtmd-helper.h
-+++ b/tools/mtmd/mtmd-helper.h
-@@ -143,6 +143,18 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.h b/tools/mtmd/mtmd-helper.h
+--- a/tools/mtmd/mtmd-helper.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-helper.h	2026-10-29 03:55:23.354075238 +0100
+@@ -141,6 +141,18 @@
                                                  mtmd_helper_post_decode_callback callback,
                                                  void * user_data);
  
@@ -2014,9 +2045,10 @@ are version 4 and are skipped when an older cache is loaded.
  //
  // video input helpers (requires ffmpeg/ffprobe installed on the system)
  // the notion of video only exists at the helper level, it is not visible to the core mtmd library
---- a/tools/mtmd/mtmd-image.cpp
-+++ b/tools/mtmd/mtmd-image.cpp
-@@ -859,6 +859,69 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.cpp
+--- a/tools/mtmd/mtmd-image.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-image.cpp	2026-10-29 03:55:23.354228979 +0100
+@@ -950,6 +950,69 @@
      return output;
  }
  
@@ -2086,9 +2118,10 @@ are version 4 and are skipped when an older cache is loaded.
  //
  // mtmd_image_preprocessor_longest_edge
  //
---- a/tools/mtmd/mtmd-image.h
-+++ b/tools/mtmd/mtmd-image.h
-@@ -129,6 +129,22 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.h b/tools/mtmd/mtmd-image.h
+--- a/tools/mtmd/mtmd-image.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd-image.h	2026-10-29 04:00:53.555909674 +0100
+@@ -135,6 +135,22 @@
  // resize image to multiple of patch_size*n_merge, while preserving aspect ratio
  // if image_resize_pad is true, the resized image will be padded, otherwise it will be either stretched or center-cropped depending on image_resize_pad
  // this is used by models with native support for dynamic image size, for example: Qwen-VL, Pixtral, Kimi-VL, etc
@@ -2110,19 +2143,20 @@ are version 4 and are skipped when an older cache is loaded.
 +
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
      mtmd_image_preprocessor_dyn_size(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
-     mtmd_image_preproc_out preprocess(const clip_image_u8 & img) const override;
---- a/tools/mtmd/mtmd.cpp
-+++ b/tools/mtmd/mtmd.cpp
-@@ -28,7 +28,7 @@
+     static clip_image_size get_target_size(const clip_hparams & hparams, const clip_image_size & original_size);
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
+--- a/tools/mtmd/mtmd.cpp	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd.cpp	2026-10-29 04:02:23.799778981 +0100
+@@ -30,7 +30,7 @@
  #include <vector>
  
  // remember to bump this if the serialization format changes
--#define MTMD_SERIALIZATION_VERSION 3
-+#define MTMD_SERIALIZATION_VERSION 4
+-#define MTMD_SERIALIZATION_VERSION 4
++#define MTMD_SERIALIZATION_VERSION 5
  
  // oldest compat version that can be loaded
  #define MTMD_SERIALIZATION_VERSION_MIN 2
-@@ -103,6 +103,25 @@
+@@ -105,6 +105,25 @@
      return str;
  }
  
@@ -2148,23 +2182,24 @@ are version 4 and are skipped when an older cache is loaded.
  // only mtmd.cpp needs these, so they're implemented here rather than in clip-impl.h
  void clip_image_f32::serialize(mtmd_serialization & ser) const {
      // remember to bump MTMD_SERIALIZATION_VERSION if this is changed
-@@ -235,7 +254,15 @@
+@@ -243,7 +262,16 @@
      mtmd_pos_type pos = MTMD_POS_TYPE_NORMAL;
      uint32_t image_idx = 0; // 0-based position of this image among image chunks in the prompt(used by pos == MTMD_POS_TYPE_HUNYUANVL)
      uint32_t n_temporal_merge = 1; // for qwen-vl style temporal merge
++    // Apertus 1.5 discrete image-token grid wrappers. Serialization v5.
 +    std::vector<llama_token> token_prefix;
 +    std::vector<llama_token> token_row_separator;
 +    std::vector<llama_token> token_suffix;
      uint32_t n_tokens() const {
 +        if (!token_prefix.empty() || !token_suffix.empty()) {
-+            // Apertus 1.5: special-token wrappers around a discrete image-token grid
++            // special-token wrappers around a discrete image-token grid
 +            const uint32_t n_row_sep = ny == 0 ? 0 : (uint32_t) token_row_separator.size() * (ny - 1);
 +            return (uint32_t) token_prefix.size() + nx * ny + n_row_sep + (uint32_t) token_suffix.size();
 +        }
          if (pos == MTMD_POS_TYPE_HUNYUANVL) {
              // [BOI] [row0 tokens + newline] ... [row(ny-1) tokens + newline] [EOI]
              return (nx + 1) * ny + 2;
-@@ -293,6 +320,9 @@
+@@ -301,6 +329,9 @@
              pos,
              image_idx,
              n_temporal_merge,
@@ -2174,7 +2209,7 @@ are version 4 and are skipped when an older cache is loaded.
              batch_f32.clone(),
              id
          };
-@@ -306,6 +336,9 @@
+@@ -314,6 +345,9 @@
          ser.write(image_idx);
          ser.write(n_temporal_merge);
          ser.write(id);
@@ -2184,11 +2219,12 @@ are version 4 and are skipped when an older cache is loaded.
          batch_f32.serialize(ser);
      }
      void deserialize(mtmd_serialization & ser) {
-@@ -319,6 +352,11 @@
+@@ -327,6 +361,12 @@
          image_idx = ser.read<uint32_t>();
          n_temporal_merge = ser.read<uint32_t>();
          id = ser.read<std::string>();
-+        if (ser.version >= 4) {
++        // v5 adds the discrete-token wrappers. Upstream v4 is the audio-track slice.
++        if (ser.version >= 5) {
 +            token_prefix = mtmd_deserialize_tokens(ser);
 +            token_row_separator = mtmd_deserialize_tokens(ser);
 +            token_suffix = mtmd_deserialize_tokens(ser);
@@ -2196,7 +2232,7 @@ are version 4 and are skipped when an older cache is loaded.
          batch_f32.deserialize(ser);
      }
  };
-@@ -459,6 +497,7 @@
+@@ -495,6 +535,7 @@
      mtmd_context * ctx;
      std::vector<const mtmd_input_chunk *> entries;
      std::vector<float> output_embd; // aggregated output embedding for the whole batch
@@ -2204,43 +2240,47 @@ are version 4 and are skipped when an older cache is loaded.
      mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
      int32_t n_tokens() const {
          int32_t n = 0;
-@@ -519,6 +558,7 @@
+@@ -555,6 +596,7 @@
      struct clip_ctx * ctx_v; // vision
      struct clip_ctx * ctx_a; // audio
      std::vector<float> out_embd; // image embedding vector
-+    std::vector<llama_token> out_tokens; // decoder token IDs produced by a discrete media encoder
++    std::vector<llama_token> out_tokens; // decoder token IDs from a discrete media encoder
  
      // generation context
      struct clip_ctx * ctx_gen_a; // audio
-@@ -629,8 +669,8 @@
+@@ -666,8 +708,11 @@
              throw std::runtime_error(string_format("Failed to load CLIP model from %s\n", mmproj_fname));
          }
  
 -        // if both vision and audio mmproj are present, we need to validate their n_embd
 -        if (ctx_v && ctx_a) {
++        const bool vision_tokens = ctx_v && clip_outputs_tokens(ctx_v);
++        const bool audio_tokens = ctx_a && clip_outputs_tokens(ctx_a);
++
 +        // Compare only projectors that produce embeddings.
-+        if (ctx_v && ctx_a && !clip_outputs_tokens(ctx_v) && !clip_outputs_tokens(ctx_a)) {
++        if (ctx_v && ctx_a && !vision_tokens && !audio_tokens) {
              int n_embd_v = clip_n_mmproj_embd(ctx_v);
              int n_embd_a = clip_n_mmproj_embd(ctx_a);
              if (n_embd_v != n_embd_a) {
-@@ -640,14 +680,18 @@
+@@ -677,15 +722,18 @@
              }
          }
  
 -        // since we already validate n_embd of vision and audio mmproj,
 -        // we can safely assume that they are the same
--        int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
+-        // a gen-only mmproj is validated below
+-        int n_embd_clip = ctx_v || ctx_a ? clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a) : n_embd_text;
 -        if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
 -            throw std::runtime_error(string_format(
 -                "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
 -                "hint: you may be using wrong mmproj\n",
 -                n_embd_text, n_embd_clip));
-+        if ((ctx_v && clip_outputs_tokens(ctx_v)) || (ctx_a && clip_outputs_tokens(ctx_a))) {
-+            // discrete tokenizers do not share an embedding width with the text model
-+        } else {
++        // discrete tokenizers do not share an embedding width with the text model
++        if (!vision_tokens && !audio_tokens) {
 +            // since we already validate n_embd of vision and audio mmproj,
 +            // we can safely assume that they are the same
-+            int n_embd_clip = clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a);
++            // a gen-only mmproj is validated below
++            int n_embd_clip = ctx_v || ctx_a ? clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a) : n_embd_text;
 +            if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
 +                throw std::runtime_error(string_format(
 +                    "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
@@ -2250,7 +2290,7 @@ are version 4 and are skipped when an older cache is loaded.
          }
          if (ctx_gen_a) {
              int n_embd_gen = clip_n_mmproj_embd(ctx_gen_a);
-@@ -753,6 +797,10 @@
+@@ -796,6 +844,10 @@
                      img_end = "]<]end of image[>[";
                      image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(ctx_v);
                  } break;
@@ -2258,10 +2298,10 @@ are version 4 and are skipped when an older cache is loaded.
 +                {
 +                    image_preproc = std::make_unique<mtmd_image_preprocessor_apertus>(ctx_v);
 +                } break;
-             case PROJECTOR_TYPE_MUSE_GLIMMER:
+             case PROJECTOR_TYPE_SENSENOVA_U1:
                  {
-                     img_beg = "<|image_start|>";
-@@ -1082,6 +1130,12 @@
+                     img_beg = "<img>";
+@@ -1168,6 +1220,12 @@
                  {
                      audio_preproc = std::make_unique<mtmd_audio_preprocessor_pockettts>(ctx_a);
                  } break;
@@ -2274,9 +2314,9 @@ are version 4 and are skipped when an older cache is loaded.
              default:
                  throw std::runtime_error(string_format("%s: unexpected audio projector type %d\n", __func__, proj));
          }
-@@ -1601,6 +1655,26 @@
-                     image_tokens->nx = n_tokens;
-                     image_tokens->ny = 1;
+@@ -1736,6 +1794,26 @@
+                     image_tokens->image_idx = n_images_added;
+                     GGML_ASSERT(n_tokens == (size_t)image_tokens->n_tokens());
                  }
 +                if (ctx->proj_type_v() == PROJECTOR_TYPE_APERTUS_VISION) {
 +                    if (preproc_out.entries.size() != 1) {
@@ -2298,10 +2338,10 @@ are version 4 and are skipped when an older cache is loaded.
 +                    append_tokens(image_tokens->token_row_separator, "<|img_end_of_row|>", true);
 +                    append_tokens(image_tokens->token_suffix, "<|img_end|>", true);
 +                }
-                 image_tokens->pos = ctx->pos_type;
-                 // HunyuanVL wraps the image grid with BOI/EOI and adds one newline per row,
-                 // and uses XD-RoPE (dim-3 = image index). Override the position type so that
-@@ -1916,7 +1990,8 @@
+ 
+                 clip_image_f32_batch batch_f32;
+                 batch_f32.is_audio = false;
+@@ -2102,7 +2180,8 @@
      }
  }
  
@@ -2311,7 +2351,7 @@ are version 4 and are skipped when an older cache is loaded.
      clip_ctx * ctx_clip = ctx->ctx_v;
      if (!ctx_clip) {
          LOG_ERR("%s: this API does not support non-vision input, please use mtmd_encode_chunk instead\n", __func__);
-@@ -1925,7 +2000,11 @@
+@@ -2111,7 +2190,11 @@
  
      int n_embd_out = ctx->n_embd_out();
      auto n_tokens_out = image_tokens->n_tokens();
@@ -2324,7 +2364,7 @@ are version 4 and are skipped when an older cache is loaded.
  
      if (image_tokens->is_placeholder()) {
          LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
-@@ -1954,12 +2033,38 @@
+@@ -2140,12 +2223,38 @@
          ctx_clip,
          ctx->n_threads,
          &image_tokens->batch_f32,
@@ -2365,7 +2405,7 @@ are version 4 and are skipped when an older cache is loaded.
      if (chunk->type == MTMD_INPUT_CHUNK_TYPE_TEXT) {
          LOG_WRN("mtmd_encode_chunk has no effect for text chunks\n");
          return 0;
-@@ -1976,7 +2081,7 @@
+@@ -2162,7 +2271,7 @@
              LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
              return 1;
          }
@@ -2374,10 +2414,10 @@ are version 4 and are skipped when an older cache is loaded.
      } else if (chunk->type == MTMD_INPUT_CHUNK_TYPE_AUDIO) {
          if (!ctx->ctx_a) {
              LOG_ERR("%s: model does not support audio input\n", __func__);
-@@ -1991,12 +2096,17 @@
-             return 1;
+@@ -2191,12 +2300,17 @@
+                             track->embd.begin() + off + (size_t) chunk->tokens_audio->n_tokens * n_mmproj_embd);
+             return 0;
          }
-         int n_mmproj_embd = ctx->n_embd_out();
 -        out_embd.resize((size_t)chunk->tokens_audio->n_tokens * n_mmproj_embd);
 +        out_embd.clear();
 +        out_tokens.clear();
@@ -2394,7 +2434,7 @@ are version 4 and are skipped when an older cache is loaded.
          return ok ? 0 : 1;
      }
  
-@@ -2007,7 +2117,7 @@
+@@ -2207,7 +2321,7 @@
  int32_t mtmd_encode_chunk(mtmd_context * ctx, const mtmd_input_chunk * chunk) {
      // this is the non-batching version
      try {
@@ -2403,7 +2443,7 @@ are version 4 and are skipped when an older cache is loaded.
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -2016,7 +2126,7 @@
+@@ -2216,7 +2330,7 @@
  
  int32_t mtmd_encode(mtmd_context * ctx, const mtmd_image_tokens * image_tokens) {
      try {
@@ -2412,7 +2452,7 @@ are version 4 and are skipped when an older cache is loaded.
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -2024,7 +2134,12 @@
+@@ -2224,7 +2338,12 @@
  }
  
  float * mtmd_get_output_embd(mtmd_context * ctx) {
@@ -2426,7 +2466,7 @@ are version 4 and are skipped when an older cache is loaded.
  }
  
  //
-@@ -2297,7 +2412,8 @@
+@@ -2646,7 +2765,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
          batch_chunk.get(),
@@ -2436,9 +2476,10 @@ are version 4 and are skipped when an older cache is loaded.
      return res;
  }
  
---- a/tools/mtmd/mtmd.h
-+++ b/tools/mtmd/mtmd.h
-@@ -331,6 +331,9 @@
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.h b/tools/mtmd/mtmd.h
+--- a/tools/mtmd/mtmd.h	2026-10-28 12:30:38.000000000 +0100
++++ b/tools/mtmd/mtmd.h	2026-10-29 03:55:23.354896795 +0100
+@@ -359,6 +359,9 @@
  // llama_model_n_embd_inp(model) * mtmd_input_chunk_get_n_tokens(chunk) * sizeof(float)
  MTMD_API float * mtmd_get_output_embd(mtmd_context * ctx);
  
