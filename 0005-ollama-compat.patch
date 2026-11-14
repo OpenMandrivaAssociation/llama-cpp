@@ -1,10 +1,12 @@
 Ollama GGUF translation layer.
 
 Load-time hooks only. OLLAMA_LLAMA_CPP_COMPAT=0 disables them.
-No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
+No-op on standard llama.cpp GGUFs. Refreshed for 1.0.0: the mmproj
+loader lives in tools/mtmd/mtmd-model.cpp (clip.cpp was folded into mtmd).
 
---- a/src/CMakeLists.txt
-+++ b/src/CMakeLists.txt
+diff -ruN a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/src/CMakeLists.txt	2026-11-13 10:09:55.000000000 +0100
++++ b/src/CMakeLists.txt	2026-11-14 06:31:49.418933459 +0100
 @@ -65,7 +65,12 @@
  
  configure_file(llama-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/llama-version.h @ONLY)
@@ -19,8 +21,9 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
  target_include_directories(llama PUBLIC ../include)
  target_compile_features   (llama PRIVATE cxx_std_17) # don't bump
  
---- a/src/llama-model-loader.cpp
-+++ b/src/llama-model-loader.cpp
+diff -ruN a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+--- a/src/llama-model-loader.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/src/llama-model-loader.cpp	2026-11-14 06:31:49.419067921 +0100
 @@ -5,6 +5,7 @@
  #include "gguf.h"
  #include "llama-hparams.h"
@@ -29,7 +32,7 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
  
  #include <algorithm>
  #include <array>
-@@ -575,6 +576,9 @@
+@@ -579,6 +580,9 @@
          }
  
          get_key(llm_kv(LLM_KV_GENERAL_ARCHITECTURE), arch_name, false);
@@ -39,7 +42,7 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
          llm_kv = LLM_KV(llm_arch_from_string(arch_name));
  
          files.emplace_back(new llama_file(fname.c_str(), "rb", use_direct_io));
-@@ -585,6 +589,9 @@
+@@ -589,6 +593,9 @@
          // so we build a unified tensors index for weights.
          for (ggml_tensor * cur = ggml_get_first_tensor(ctx); cur; cur = ggml_get_next_tensor(ctx, cur)) {
              std::string tensor_name = std::string(cur->name);
@@ -49,7 +52,7 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
              // make sure there is no duplicated tensor names
              if (weights_map.find(tensor_name) != weights_map.end()) {
                  throw std::runtime_error(format("invalid model: tensor '%s' is duplicated", ggml_get_name(cur)));
-@@ -702,6 +709,9 @@
+@@ -788,6 +795,9 @@
          // Save tensors data offset info of the main file.
          for (ggml_tensor * cur = ggml_get_first_tensor(ctx); cur; cur = ggml_get_next_tensor(ctx, cur)) {
              std::string tensor_name = std::string(cur->name);
@@ -59,7 +62,7 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
              // make sure there is no duplicated tensor names
              if (weights_map.find(tensor_name) != weights_map.end()) {
                  throw std::runtime_error(format("invalid model: tensor '%s' is duplicated", ggml_get_name(cur)));
-@@ -1531,6 +1541,10 @@
+@@ -1625,6 +1635,10 @@
  const void * llama_model_loader::load_data_range(const llama_tensor_weight & w, size_t offs, size_t size, void * buf) const {
      GGML_ASSERT(offs + size <= ggml_nbytes(w.tensor));
  
@@ -70,7 +73,7 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
      const void * data = buf;
  
      if (use_mmap) {
-@@ -1695,6 +1709,7 @@
+@@ -1791,6 +1805,7 @@
          }
  
          size_t n_size = ggml_nbytes(cur);
@@ -78,8 +81,9 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
  
          const bool from_mapping = use_mmap || lazy.has(cur);
  
---- a/src/ollama-compat/llama-ollama-compat-util.cpp
-+++ b/src/ollama-compat/llama-ollama-compat-util.cpp
+diff -ruN a/src/ollama-compat/llama-ollama-compat-util.cpp b/src/ollama-compat/llama-ollama-compat-util.cpp
+--- a/src/ollama-compat/llama-ollama-compat-util.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/src/ollama-compat/llama-ollama-compat-util.cpp	2026-11-14 06:31:49.419391775 +0100
 @@ -0,0 +1,412 @@
 +#include "llama-ollama-compat-util.h"
 +
@@ -493,8 +497,9 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +}
 +
 +} // namespace llama_ollama_compat::detail
---- a/src/ollama-compat/llama-ollama-compat-util.h
-+++ b/src/ollama-compat/llama-ollama-compat-util.h
+diff -ruN a/src/ollama-compat/llama-ollama-compat-util.h b/src/ollama-compat/llama-ollama-compat-util.h
+--- a/src/ollama-compat/llama-ollama-compat-util.h	1970-01-01 01:00:00.000000000 +0100
++++ b/src/ollama-compat/llama-ollama-compat-util.h	2026-11-14 06:31:49.419499446 +0100
 @@ -0,0 +1,138 @@
 +#pragma once
 +
@@ -634,8 +639,9 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +                                 const std::vector<std::string> & src_names);
 +
 +} // namespace llama_ollama_compat::detail
---- a/src/ollama-compat/llama-ollama-compat.cpp
-+++ b/src/ollama-compat/llama-ollama-compat.cpp
+diff -ruN a/src/ollama-compat/llama-ollama-compat.cpp b/src/ollama-compat/llama-ollama-compat.cpp
+--- a/src/ollama-compat/llama-ollama-compat.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/src/ollama-compat/llama-ollama-compat.cpp	2026-11-14 06:31:49.420288407 +0100
 @@ -0,0 +1,3512 @@
 +#include "llama-ollama-compat.h"
 +#include "llama-ollama-compat-util.h"
@@ -4149,8 +4155,9 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +}
 +
 +} // namespace llama_ollama_compat
---- a/src/ollama-compat/llama-ollama-compat.h
-+++ b/src/ollama-compat/llama-ollama-compat.h
+diff -ruN a/src/ollama-compat/llama-ollama-compat.h b/src/ollama-compat/llama-ollama-compat.h
+--- a/src/ollama-compat/llama-ollama-compat.h	1970-01-01 01:00:00.000000000 +0100
++++ b/src/ollama-compat/llama-ollama-compat.h	2026-11-14 06:34:44.091548832 +0100
 @@ -0,0 +1,104 @@
 +#pragma once
 +
@@ -4167,8 +4174,8 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +//        translate_metadata()        — mutate KVs / tensor metadata
 +//        should_skip_tensor()        — filter weights_map population
 +//
-+//   2. tools/mtmd/clip.cpp (mmproj load):
-+//        translate_clip_metadata()   — rewrite KVs + tensor names for clip
++//   2. tools/mtmd/mtmd-model.cpp (mmproj load):
++//        translate_clip_metadata()   — rewrite KVs + tensor names for mtmd
 +//        maybe_load_tensor()         — override file read (e.g. F16->F32)
 +//
 +// Detection is per-arch; for any non-Ollama file every entry point is a
@@ -4210,12 +4217,12 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +// tensors from the text model's view without modifying the gguf_context.
 +bool should_skip_tensor(const llama_model_loader * ml, const char * tensor_name);
 +
-+// Called from clip_model_loader's constructor. Rewrites the clip-facing
++// Called from mtmd_model_loader's constructor. Rewrites the mtmd-facing
 +// view of the metadata (arch=clip, clip.vision.* KVs, renamed tensors)
-+// so the rest of clip.cpp can load a monolithic GGUF unchanged.
++// so the rest of mtmd-model.cpp can load a monolithic GGUF unchanged.
 +void translate_clip_metadata(gguf_context * meta, ggml_context * ctx);
 +
-+// Called from clip.cpp's tensor-loading loop, before the normal file read.
++// Called from mtmd-model.cpp's tensor-loading loop, before the normal file read.
 +// If this tensor was marked for type promotion by translate_clip_metadata
 +// (e.g. F16->F32), performs the conversion and writes the result into
 +// `cur` (host memcpy or backend_tensor_set based on `buft`). Returns true
@@ -4249,20 +4256,21 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +                                          size_t size,
 +                                          void * buf);
 +
-+// Called from clip_n_mmproj_embd() before the upstream switch. Returns a
++// Called from mtmd_model::n_mmproj_embd() before the upstream switch. Returns a
 +// positive embedding size only for Ollama compatibility cases whose projector
 +// metadata already follows upstream naming, but whose legacy projector type
 +// is missing from that helper in the pinned llama.cpp version.
 +int maybe_clip_mmproj_embd(const char * projector_type, int projection_dim);
 +
 +} // namespace llama_ollama_compat
---- a/tools/mtmd/CMakeLists.txt
-+++ b/tools/mtmd/CMakeLists.txt
-@@ -87,6 +87,15 @@
+diff -ruN a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
+--- a/tools/mtmd/CMakeLists.txt	2026-11-14 06:10:21.249495681 +0100
++++ b/tools/mtmd/CMakeLists.txt	2026-11-14 06:39:28.921520204 +0100
+@@ -111,6 +111,15 @@
  target_link_libraries     (mtmd PUBLIC ggml llama)
  target_link_libraries     (mtmd PRIVATE Threads::Threads vendor::hash vendor::miniaudio vendor::stb vendor::sheredom)
  target_include_directories(mtmd PUBLIC  .)
-+# Same Ollama GGUF shim as libllama (clip loader hooks). Separate
++# Same Ollama GGUF shim as libllama (mtmd loader hooks). Separate
 +# translation unit so the load-op registry lives in this .so.
 +target_sources(mtmd PRIVATE
 +            ../../src/ollama-compat/llama-ollama-compat.cpp
@@ -4273,19 +4281,19 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
 +target_compile_definitions(mtmd PRIVATE OLLAMA_COMPAT_MTMD_BUILD)
  target_compile_features   (mtmd PRIVATE cxx_std_17)
  
- if (MTMD_VIDEO)
---- a/tools/mtmd/clip.cpp
-+++ b/tools/mtmd/clip.cpp
-@@ -10,6 +10,8 @@
+ # for M_PI, set here because a unity batch can include <cmath> before the source that needs it
+diff -ruN a/tools/mtmd/mtmd-model.cpp b/tools/mtmd/mtmd-model.cpp
+--- a/tools/mtmd/mtmd-model.cpp	2026-11-14 06:19:27.100028767 +0100
++++ b/tools/mtmd/mtmd-model.cpp	2026-11-14 06:34:44.042530942 +0100
+@@ -7,6 +7,7 @@
+ #include "ggml-alloc.h"
  #include "ggml-backend.h"
  #include "gguf.h"
- 
 +#include "llama-ollama-compat.h"
-+
+ 
  #include <algorithm>
  #include <cassert>
- #include <cmath>
-@@ -1257,6 +1259,11 @@
+@@ -66,6 +67,11 @@
  
          ctx_meta.reset(meta);
  
@@ -4297,27 +4305,27 @@ No-op on standard llama.cpp GGUFs. Refreshed for 0.7.0.
          const int n_tensors = gguf_get_n_tensors(ctx_gguf.get());
  
          // print gguf info
-@@ -3959,6 +3966,7 @@
+@@ -3723,6 +3729,7 @@
                      auto it_off = tensor_offset.find(t->name);
                      GGML_ASSERT(it_off != tensor_offset.end() && "no offset for tensor");
                      const size_t offset = it_off->second;
 +                    if (llama_ollama_compat::maybe_load_tensor(cur, fname.c_str(), offset, buft)) continue;
                      fin.seekg(offset, std::ios::beg);
                      if (!fin) {
-                         throw std::runtime_error(string_format("%s: failed to seek for tensor %s\n", __func__, t->name));
-@@ -6376,6 +6384,15 @@
+                         throw std::runtime_error(mtmd_format("%s: failed to seek for tensor %s\n", __func__, t->name));
+@@ -4419,6 +4426,15 @@
  }
  
- int clip_n_mmproj_embd(const struct clip_ctx * ctx) {
-+    const auto projector_type = PROJECTOR_TYPE_NAMES.find(ctx->model.proj_type);
+ int mtmd_model::n_mmproj_embd() const {
++    const auto projector_type = PROJECTOR_TYPE_NAMES.find(proj_type);
 +    if (projector_type != PROJECTOR_TYPE_NAMES.end()) {
 +        if (int n = llama_ollama_compat::maybe_clip_mmproj_embd(
 +                projector_type->second.c_str(),
-+                ctx->model.hparams.projection_dim); n > 0) {
++                hparams.projection_dim); n > 0) {
 +            return n;
 +        }
 +    }
 +
-     switch (ctx->model.proj_type) {
+     switch (proj_type) {
          case PROJECTOR_TYPE_LDP:
-             return ctx->model.mm_model_block_1_block_2_1_b->ne[0];
+             return mm_model_block_1_block_2_1_b->ne[0];

@@ -1,15 +1,16 @@
 Apertus 1.5 text model plus discrete vision and audio tokenizers.
 
-Upstream 0.8.0 already has Apertus text (LLM_ARCH_APERTUS) but not the
-1.5 discrete vision/audio tokenizers. mtmd serialization is already
-version 4 (audio-track slices), so token_prefix/row_separator/suffix
-are version 5 and are skipped when an older cache is loaded.
+Upstream 1.0.0 has Apertus text (LLM_ARCH_APERTUS) but not the 1.5
+discrete vision/audio tokenizers. clip.cpp was folded into mtmd, so
+the graphs live in tools/mtmd. mtmd serialization is version 4
+(audio-track slices); token_prefix / row_separator / suffix are
+version 5 and are skipped when an older cache is loaded.
 
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/__init__.py b/conversion/__init__.py
---- a/conversion/__init__.py	2026-10-28 12:30:38.000000000 +0100
-+++ b/conversion/__init__.py	2026-10-29 04:00:53.543874894 +0100
-@@ -22,6 +22,8 @@
-     "LagunaForCausalLM": "laguna",
+--- a/conversion/__init__.py	2026-11-13 10:09:55.000000000 +0100
++++ b/conversion/__init__.py	2026-11-14 06:10:21.247461732 +0100
+@@ -23,6 +23,8 @@
+     "RicursiveForCausalLM": "ricursive",
      "FlintForCausalLM": "flint",
      "ApertusForCausalLM": "llama",
 +    "Apertus1p5ForConditionalGeneration": "llama",
@@ -17,17 +18,17 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/__init__.py b/conver
      "ArceeForCausalLM": "llama",
      "ArcticForCausalLM": "arctic",
      "AudioFlamingo3ForConditionalGeneration": "qwen",
-@@ -324,6 +326,7 @@
+@@ -335,6 +337,7 @@
  
  
  MMPROJ_MODEL_MAP: dict[str, str] = {
 +    "Apertus1p5ForConditionalGeneration": "llama",
      "AudioFlamingo3ForConditionalGeneration": "ultravox",
+     "ChatterboxModel": "chatterbox",
      "ClefModel": "clef",
-     "CogVLMForCausalLM": "cogvlm",
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/llama.py b/conversion/llama.py
---- a/conversion/llama.py	2026-10-28 12:30:38.000000000 +0100
-+++ b/conversion/llama.py	2026-10-29 03:55:23.349056317 +0100
+--- a/conversion/llama.py	2026-11-13 10:09:55.000000000 +0100
++++ b/conversion/llama.py	2026-11-14 06:10:21.247639055 +0100
 @@ -11,7 +11,7 @@
  if TYPE_CHECKING:
      from torch import Tensor
@@ -189,8 +190,8 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/conversion/llama.py b/conversio
 +            yield "a.codebook.weight", data_torch
 +            return
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/gguf-py/gguf/constants.py
---- a/gguf-py/gguf/constants.py	2026-10-28 12:30:38.000000000 +0100
-+++ b/gguf-py/gguf/constants.py	2026-10-29 03:55:23.349567251 +0100
+--- a/gguf-py/gguf/constants.py	2026-11-13 10:09:55.000000000 +0100
++++ b/gguf-py/gguf/constants.py	2026-11-14 06:10:21.248030450 +0100
 @@ -107,6 +107,7 @@
  
      class LLM:
@@ -199,7 +200,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/ggu
          CONTEXT_LENGTH                    = "{arch}.context_length"
          EMBEDDING_LENGTH                  = "{arch}.embedding_length"
          EMBEDDING_LENGTH_OUT              = "{arch}.embedding_length_out"
-@@ -459,6 +460,13 @@
+@@ -477,6 +478,13 @@
          WINDOW_SIZE           = "clip.vision.window_size"
          FEATURE_LAYERS        = "clip.vision.feature_layer" # Granite4 Vision
          IMAGE_GRID_PINPOINTS  = "clip.vision.image_grid_pinpoints" # Granite4 Vision
@@ -213,7 +214,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/ggu
  
          class Attention:
              HEAD_COUNT      = "clip.vision.attention.head_count"
-@@ -498,6 +506,15 @@
+@@ -516,6 +524,15 @@
          WINDOW_SIZE         = "clip.audio.window_size"
          LOCAL_BLOCK_COUNT   = "clip.audio.local_block_count" # mimo-v2.5: input_local_transformer layer count
          LOCAL_GROUP_SIZE    = "clip.audio.local_group_size"  # mimo-v2.5: input_local_transformer grouping size
@@ -226,10 +227,10 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/ggu
 +        RESIDUAL_BLOCK_COUNT = "clip.audio.residual_block_count"
 +        DILATION_GROWTH_RATE = "clip.audio.dilation_growth_rate"
 +        LSTM_BLOCK_COUNT     = "clip.audio.lstm_block_count"
+         ROPE_DIMS           = "clip.audio.rope_dims"         # nemotron-transcribe
  
-         class Attention:
-             HEAD_COUNT      = "clip.audio.attention.head_count"
-@@ -6618,6 +6635,8 @@
+         class Speaker: # nemotron-transcribe
+@@ -7087,6 +7104,8 @@
      MIMO_AUDIO     = "mimo_audio"
      GRANITE4_VISION = "granite4_vision"
      MUSE_GLIMMER   = "muse-glimmer"
@@ -239,9 +240,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/constants.py b/ggu
      D1OMNI_V       = "d1omni_v"  # lfm2 vision, without separator tokens
      D1OMNI_A       = "d1omni_a"  # lfm2a audio, with a residual block after the projector
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/gguf_writer.py b/gguf-py/gguf/gguf_writer.py
---- a/gguf-py/gguf/gguf_writer.py	2026-10-28 12:30:38.000000000 +0100
-+++ b/gguf-py/gguf/gguf_writer.py	2026-10-29 03:55:23.350015305 +0100
-@@ -695,6 +695,9 @@
+--- a/gguf-py/gguf/gguf_writer.py	2026-11-13 10:09:55.000000000 +0100
++++ b/gguf-py/gguf/gguf_writer.py	2026-11-14 06:10:21.248447336 +0100
+@@ -700,6 +700,9 @@
      def add_vocab_size(self, size: int) -> None:
          self.add_uint32(Keys.LLM.VOCAB_SIZE.format(arch=self.arch), size)
  
@@ -251,7 +252,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/gguf_writer.py b/g
      def add_context_length(self, length: int) -> None:
          self.add_uint32(Keys.LLM.CONTEXT_LENGTH.format(arch=self.arch), length)
  
-@@ -1599,6 +1602,27 @@
+@@ -1646,6 +1649,27 @@
      def add_vision_image_grid_pinpoints(self, layers: Sequence[Sequence[int]]) -> None:
          self.add_array(Keys.ClipVision.IMAGE_GRID_PINPOINTS, layers)
  
@@ -279,7 +280,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/gguf_writer.py b/g
      def add_vision_sam_layers_count(self, value: int) -> None:
          self.add_uint32(Keys.ClipVision.SAM.BLOCK_COUNT, value)
  
-@@ -1637,6 +1661,33 @@
+@@ -1684,6 +1708,33 @@
      def add_audio_attention_layernorm_eps(self, value: float) -> None:
          self.add_float32(Keys.ClipAudio.Attention.LAYERNORM_EPS, value)
  
@@ -315,7 +316,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/gguf-py/gguf/gguf_writer.py b/g
  
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/models/templates/swiss-ai-Apertus-v1.5.jinja b/models/templates/swiss-ai-Apertus-v1.5.jinja
 --- a/models/templates/swiss-ai-Apertus-v1.5.jinja	1970-01-01 01:00:00.000000000 +0100
-+++ b/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-10-29 03:55:23.350288497 +0100
++++ b/models/templates/swiss-ai-Apertus-v1.5.jinja	2026-11-14 06:10:21.248633839 +0100
 @@ -0,0 +1,374 @@
 +{%- macro render_typescript_type(param_spec, required_params, is_nullable=false) -%}
 +    {%- if param_spec.type == "array" -%}
@@ -692,9 +693,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/models/templates/swiss-ai-Apert
 +    {{ assistant_token }}
 +{%- endif -%}
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.cpp b/src/llama-arch.cpp
---- a/src/llama-arch.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/src/llama-arch.cpp	2026-10-29 03:55:23.350399158 +0100
-@@ -205,6 +205,7 @@
+--- a/src/llama-arch.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/src/llama-arch.cpp	2026-11-14 06:19:27.090908900 +0100
+@@ -212,6 +212,7 @@
      { LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,           "general.tensor_extra.prec_a4"          },
  
      { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
@@ -702,18 +703,18 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.cpp b/src/llama-
      { LLM_KV_CONTEXT_LENGTH,                    "%s.context_length"                    },
      { LLM_KV_EMBEDDING_LENGTH,                  "%s.embedding_length"                  },
      { LLM_KV_EMBEDDING_LENGTH_OUT,              "%s.embedding_length_out"              },
-@@ -1323,6 +1324,7 @@
- 
+@@ -1435,6 +1436,7 @@
  bool llm_arch_supports_sm_tensor(const llm_arch & arch) {
      switch (arch) {
+         case LLM_ARCH_CLOVER_MOE:
 +        case LLM_ARCH_APERTUS:
          case LLM_ARCH_GROK:
          case LLM_ARCH_MPT:
          case LLM_ARCH_PLAMO2:
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.h b/src/llama-arch.h
---- a/src/llama-arch.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/src/llama-arch.h	2026-10-29 03:55:23.350584749 +0100
-@@ -209,6 +209,7 @@
+--- a/src/llama-arch.h	2026-11-13 10:09:55.000000000 +0100
++++ b/src/llama-arch.h	2026-11-14 06:10:21.248889003 +0100
+@@ -216,6 +216,7 @@
      LLM_KV_GENERAL_TENSOR_EXTRA_PREC_A4,
  
      LLM_KV_VOCAB_SIZE,
@@ -722,9 +723,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-arch.h b/src/llama-ar
      LLM_KV_EMBEDDING_LENGTH,
      LLM_KV_EMBEDDING_LENGTH_OUT,
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-hparams.h b/src/llama-hparams.h
---- a/src/llama-hparams.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/src/llama-hparams.h	2026-10-29 03:55:23.350697300 +0100
-@@ -274,6 +274,9 @@
+--- a/src/llama-hparams.h	2026-11-13 10:09:55.000000000 +0100
++++ b/src/llama-hparams.h	2026-11-14 06:10:21.248978824 +0100
+@@ -292,6 +292,9 @@
      float    lilicorr_vector_eps     = 0.0f;
      float    lilicorr_logit_scale    = 0.0f;
  
@@ -735,9 +736,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-hparams.h b/src/llama
      uint32_t n_moe_layer_step        = 0;
      uint32_t n_no_rope_layer_step    = 4;
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-model.cpp b/src/llama-model.cpp
---- a/src/llama-model.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/src/llama-model.cpp	2026-10-29 03:55:23.350946322 +0100
-@@ -1395,6 +1395,7 @@
+--- a/src/llama-model.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/src/llama-model.cpp	2026-11-14 06:10:21.249175507 +0100
+@@ -1485,6 +1485,7 @@
      }
  
      ml.get_key(LLM_KV_CONTEXT_LENGTH,          hparams.n_ctx_train);
@@ -746,8 +747,8 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/llama-model.cpp b/src/llama
      ml.get_key(LLM_KV_EMBEDDING_LENGTH_OUT,    hparams.n_embd_out_impl, false);
      ml.get_key(LLM_KV_ATTENTION_CAUSAL,        hparams.causal_attn,     false);
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/models/apertus.cpp b/src/models/apertus.cpp
---- a/src/models/apertus.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/src/models/apertus.cpp	2026-10-29 03:55:23.351227635 +0100
+--- a/src/models/apertus.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/src/models/apertus.cpp	2026-11-14 06:10:21.249385770 +0100
 @@ -1,4 +1,5 @@
  #include "models.h"
 +#include <float.h>
@@ -780,7 +781,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/models/apertus.cpp b/src/mo
  
      for (int i = 0; i < n_layer; ++i) {
          auto & layer = layers[i];
-@@ -163,6 +170,17 @@
+@@ -158,6 +165,17 @@
      // lm_head
      cur = build_lora_mm(model.output, cur, model.output_s);
  
@@ -799,688 +800,20 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/src/models/apertus.cpp b/src/mo
      res->t_logits = cur;
  }
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/CMakeLists.txt b/tools/mtmd/CMakeLists.txt
---- a/tools/mtmd/CMakeLists.txt	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/CMakeLists.txt	2026-10-29 03:55:23.351295365 +0100
-@@ -29,6 +29,8 @@
-             clip-graph.h
-             models/models.h
+--- a/tools/mtmd/CMakeLists.txt	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/CMakeLists.txt	2026-11-14 06:10:21.249495681 +0100
+@@ -37,6 +37,8 @@
+             models/chatterbox-gen.cpp
+             models/chatterbox-spkenc.cpp
              models/cogvlm.cpp
 +            models/apertus-vision.cpp
 +            models/apertus-audio.cpp
              models/conformer.cpp
              models/deepseek4v.cpp
              models/dots3note.cpp
-diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip-impl.h b/tools/mtmd/clip-impl.h
---- a/tools/mtmd/clip-impl.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/clip-impl.h	2026-10-29 04:00:53.544029595 +0100
-@@ -54,6 +54,13 @@
- #define KEY_IMAGE_SIZE              "clip.vision.image_size"
- #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
- #define KEY_IMAGE_MAX_PIXELS        "clip.vision.image_max_pixels"
-+#define KEY_V_CODEBOOK_SIZE         "clip.vision.codebook_size"
-+#define KEY_V_CODEBOOK_DIM          "clip.vision.codebook_dim"
-+#define KEY_V_TOKEN_OFFSET          "clip.vision.token_offset"
-+#define KEY_V_SPATIAL_FACTOR        "clip.vision.spatial_factor"
-+#define KEY_V_CHANNEL_MULTIPLIERS   "clip.vision.channel_multipliers"
-+#define KEY_V_RESIDUAL_BLOCK_COUNT  "clip.vision.residual_block_count"
-+#define KEY_V_ATTENTION_LEVELS      "clip.vision.attention_levels"
- #define KEY_PREPROC_MIN_TILES       "clip.vision.preproc_min_tiles"
- #define KEY_PREPROC_MAX_TILES       "clip.vision.preproc_max_tiles"
- #define KEY_PREPROC_IMAGE_SIZE      "clip.vision.preproc_image_size"
-@@ -98,6 +105,15 @@
- #define KEY_A_PROJ_HEAD_COUNT      "clip.audio.projector.head_count"
- #define KEY_A_RVQ_NUM_QUANTIZERS   "clip.audio.rvq.num_quantizers"   // mimo-audio-tokenizer
- #define KEY_A_RVQ_CODEBOOK_SIZE    "clip.audio.rvq.codebook_size"    // mimo-audio-tokenizer: per-quantizer bin count
-+#define KEY_A_CODEBOOK_SIZE          "clip.audio.codebook_size"
-+#define KEY_A_CODEBOOK_DIM           "clip.audio.codebook_dim"
-+#define KEY_A_TOKEN_OFFSET           "clip.audio.token_offset"
-+#define KEY_A_SAMPLE_RATE            "clip.audio.sample_rate"
-+#define KEY_A_HOP_LENGTH             "clip.audio.hop_length"
-+#define KEY_A_DOWNSAMPLE_RATIOS      "clip.audio.downsample_ratios"
-+#define KEY_A_RESIDUAL_BLOCK_COUNT   "clip.audio.residual_block_count"
-+#define KEY_A_DILATION_GROWTH_RATE   "clip.audio.dilation_growth_rate"
-+#define KEY_A_LSTM_BLOCK_COUNT       "clip.audio.lstm_block_count"
- #define KEY_A_WA_PATTERN_MODE      "clip.audio.wa_pattern_mode"      // mimo-audio-tokenizer, per-layer -1 (full) / 0 (windowed)
- #define KEY_A_ATTN_WINDOW_SIZE     "clip.audio.window_size"          // mimo-audio-tokenizer: sliding-window radius
- #define KEY_A_LOCAL_BLOCK_COUNT    "clip.audio.local_block_count"    // mimo-v2.5: input_local_transformer layer count
-@@ -502,6 +518,22 @@
- // TODO: improve this later
- struct clip_ctx;
- 
-+#define TN_APERTUS_V_CONV_IN       "v.encoder.conv_in.%s"
-+#define TN_APERTUS_V_CONV_OUT      "v.encoder.conv_out.%s"
-+#define TN_APERTUS_V_NORM_OUT      "v.encoder.norm_out.%s"
-+#define TN_APERTUS_V_DOWN_BLOCK    "v.encoder.down.%d.block.%d.%s.%s"
-+#define TN_APERTUS_V_DOWN_ATTN     "v.encoder.down.%d.attn.%d.%s.%s"
-+#define TN_APERTUS_V_DOWNSAMPLE    "v.encoder.down.%d.downsample.conv.%s"
-+#define TN_APERTUS_V_MID_BLOCK     "v.encoder.mid.block_%d.%s.%s"
-+#define TN_APERTUS_V_MID_ATTN      "v.encoder.mid.attn_1.%s.%s"
-+#define TN_APERTUS_V_QUANT_CONV    "v.quant_conv.%s"
-+#define TN_APERTUS_V_CODEBOOK      "v.codebook.weight"
-+#define TN_APERTUS_A_CONV          "a.encoder.layers.%d.conv.%s"
-+#define TN_APERTUS_A_RESBLOCK_CONV "a.encoder.layers.%d.block.%d.conv.%s"
-+#define TN_APERTUS_A_SHORTCUT      "a.encoder.layers.%d.shortcut.conv.%s"
-+#define TN_APERTUS_A_LSTM          "a.encoder.layers.%d.lstm.%s_l%d"
-+#define TN_APERTUS_A_CODEBOOK      "a.codebook.weight"
-+
- enum projector_type {
-     PROJECTOR_TYPE_MLP,
-     PROJECTOR_TYPE_MLP_NORM,
-@@ -570,6 +602,8 @@
-     PROJECTOR_TYPE_MIMOVL,
-     PROJECTOR_TYPE_MINIMAX_M3,
-     PROJECTOR_TYPE_GRANITE4_VISION,
-+    PROJECTOR_TYPE_APERTUS_VISION,
-+    PROJECTOR_TYPE_APERTUS_AUDIO,
-     PROJECTOR_TYPE_MIMO_AUDIO,
-     PROJECTOR_TYPE_QWEN3TTS_SPKENC,
-     PROJECTOR_TYPE_QWEN3TTS_GEN,
-@@ -643,6 +677,8 @@
-     { PROJECTOR_TYPE_NEMOTRON_OMNI,     "nemotron_omni"},
-     { PROJECTOR_TYPE_EXAONE4_5,         "exaone4_5"},
-     { PROJECTOR_TYPE_HUNYUANVL,         "hunyuanvl"},
-+    { PROJECTOR_TYPE_APERTUS_VISION,    "apertus_vision"},
-+    { PROJECTOR_TYPE_APERTUS_AUDIO,     "apertus_audio"},
-     { PROJECTOR_TYPE_MINICPMV4_6,       "minicpmv4_6"},
-     { PROJECTOR_TYPE_MINICPMV4_7,       "minicpmv4_7"},
-     { PROJECTOR_TYPE_MINICPM_OCR_1_0,   "minicpm_ocr_1_0"},
-diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip-model.h b/tools/mtmd/clip-model.h
---- a/tools/mtmd/clip-model.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/clip-model.h	2026-10-29 04:00:53.544162046 +0100
-@@ -128,6 +128,19 @@
-     int32_t muse_glimmer_patch_temporal = 0;
-     int32_t muse_glimmer_sparse_factor  = 0;
- 
-+    // Apertus discrete tokenizers
-+    int32_t codebook_size = 0;
-+    int32_t codebook_dim = 0;
-+    int32_t token_offset = 0;
-+    int32_t vision_spatial_factor = 0;
-+    int32_t vision_residual_block_count = 0;
-+    std::vector<int32_t> vision_channel_multipliers;
-+    std::vector<int32_t> vision_attention_levels;
-+    int32_t audio_residual_block_count = 0;
-+    int32_t audio_dilation_growth_rate = 0;
-+    int32_t audio_lstm_block_count = 0;
-+    std::vector<int32_t> audio_downsample_ratios;
-+
-     // audio
-     int32_t n_mel_bins = 0; // whisper preprocessor
-     int32_t proj_stack_factor = 0; // ultravox
-@@ -615,6 +628,58 @@
-     std::vector<clip_code2wav::upsample_block> blocks;
- };
- 
-+
-+struct apertus_vision_resblock {
-+    ggml_tensor * norm1_w = nullptr;
-+    ggml_tensor * norm1_b = nullptr;
-+    ggml_tensor * conv1_w = nullptr;
-+    ggml_tensor * conv1_b = nullptr;
-+    ggml_tensor * norm2_w = nullptr;
-+    ggml_tensor * norm2_b = nullptr;
-+    ggml_tensor * conv2_w = nullptr;
-+    ggml_tensor * conv2_b = nullptr;
-+    ggml_tensor * shortcut_w = nullptr;
-+    ggml_tensor * shortcut_b = nullptr;
-+};
-+
-+struct apertus_vision_attention {
-+    ggml_tensor * norm_w = nullptr;
-+    ggml_tensor * norm_b = nullptr;
-+    ggml_tensor * q_w = nullptr;
-+    ggml_tensor * q_b = nullptr;
-+    ggml_tensor * k_w = nullptr;
-+    ggml_tensor * k_b = nullptr;
-+    ggml_tensor * v_w = nullptr;
-+    ggml_tensor * v_b = nullptr;
-+    ggml_tensor * out_w = nullptr;
-+    ggml_tensor * out_b = nullptr;
-+};
-+
-+struct apertus_vision_stage {
-+    std::vector<apertus_vision_resblock> blocks;
-+    std::vector<apertus_vision_attention> attentions;
-+    ggml_tensor * downsample_w = nullptr;
-+    ggml_tensor * downsample_b = nullptr;
-+};
-+
-+struct apertus_audio_conv {
-+    ggml_tensor * w = nullptr;
-+    ggml_tensor * b = nullptr;
-+};
-+
-+struct apertus_audio_resblock {
-+    apertus_audio_conv conv1;
-+    apertus_audio_conv conv2;
-+    apertus_audio_conv shortcut;
-+};
-+
-+struct apertus_audio_lstm_layer {
-+    ggml_tensor * weight_ih = nullptr;
-+    ggml_tensor * weight_hh = nullptr;
-+    ggml_tensor * bias_ih = nullptr;
-+    ggml_tensor * bias_hh = nullptr;
-+};
-+
- struct clip_model {
-     clip_modality modality = CLIP_MODALITY_VISION;
-     projector_type proj_type = PROJECTOR_TYPE_MLP;
-@@ -629,6 +694,27 @@
-     ggml_tensor * norm_embd_w = nullptr;
-     ggml_tensor * norm_embd_b = nullptr;
- 
-+    // Apertus discrete vision tokenizer
-+    ggml_tensor * apertus_v_conv_in_w = nullptr;
-+    ggml_tensor * apertus_v_conv_in_b = nullptr;
-+    ggml_tensor * apertus_v_conv_out_w = nullptr;
-+    ggml_tensor * apertus_v_conv_out_b = nullptr;
-+    ggml_tensor * apertus_v_norm_out_w = nullptr;
-+    ggml_tensor * apertus_v_norm_out_b = nullptr;
-+    ggml_tensor * apertus_v_quant_conv_w = nullptr;
-+    ggml_tensor * apertus_v_quant_conv_b = nullptr;
-+    ggml_tensor * apertus_v_codebook = nullptr;
-+    std::vector<apertus_vision_stage> apertus_v_stages;
-+    apertus_vision_resblock apertus_v_mid_block_1;
-+    apertus_vision_attention apertus_v_mid_attention;
-+    apertus_vision_resblock apertus_v_mid_block_2;
-+
-+    // Apertus discrete audio tokenizer
-+    std::vector<apertus_audio_conv> apertus_a_convs;
-+    std::vector<apertus_audio_resblock> apertus_a_resblocks;
-+    std::vector<apertus_audio_lstm_layer> apertus_a_lstm_layers;
-+    ggml_tensor * apertus_a_codebook = nullptr;
-+
-     // "indexed" patch embedding norms
-     ggml_tensor * patch_norm_1_w = nullptr;
-     ggml_tensor * patch_norm_1_b = nullptr;
-diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip.cpp b/tools/mtmd/clip.cpp
---- a/tools/mtmd/clip.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/clip.cpp	2026-10-29 04:00:53.555681012 +0100
-@@ -14,6 +14,7 @@
- #include <cassert>
- #include <cmath>
- #include <cstdlib>
-+#include <cstdio>
- #include <cstring>
- #include <fstream>
- #include <map>
-@@ -174,6 +175,10 @@
- 
-     bool support_batch = false;
- 
-+    // kept across ensure_graph_capacity() rebuilds
-+    ggml_backend_sched_eval_callback cb_eval = nullptr;
-+    void * cb_eval_user_data = nullptr;
-+
-     clip_ctx(clip_context_params & ctx_params) {
-         flash_attn_type = ctx_params.flash_attn_type;
-         no_alloc = ctx_params.no_alloc;
-@@ -217,8 +222,10 @@
-             ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), 8192, false, true)
-         );
- 
--        if (ctx_params.cb_eval != nullptr) {
--            ggml_backend_sched_set_eval_callback(sched.get(), ctx_params.cb_eval, ctx_params.cb_eval_user_data);
-+        cb_eval = ctx_params.cb_eval;
-+        cb_eval_user_data = ctx_params.cb_eval_user_data;
-+        if (cb_eval != nullptr) {
-+            ggml_backend_sched_set_eval_callback(sched.get(), cb_eval, cb_eval_user_data);
-         }
- 
-         debug_output_embeddings = std::getenv("MTMD_DEBUG_EMBEDDINGS") != nullptr;
-@@ -235,6 +242,21 @@
-     projector_type proj_type() const {
-         return model.proj_type;
-     }
-+
-+    void ensure_graph_capacity(int required_nodes) {
-+        if (required_nodes <= max_nodes) {
-+            return;
-+        }
-+
-+        max_nodes = required_nodes;
-+        buf_compute_meta.resize(max_nodes * ggml_tensor_overhead() + ggml_graph_overhead());
-+        sched.reset(ggml_backend_sched_new(
-+            backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, false, true));
-+        if (cb_eval != nullptr) {
-+            ggml_backend_sched_set_eval_callback(sched.get(), cb_eval, cb_eval_user_data);
-+        }
-+        is_allocated = false;
-+    }
- };
- 
- //
-@@ -1055,6 +1077,14 @@
-             {
-                 builder = std::make_unique<clip_graph_muse_glimmer>(ctx, img);
-             } break;
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+            {
-+                builder = std::make_unique<clip_graph_apertus_vision>(ctx, img);
-+            } break;
-+        case PROJECTOR_TYPE_APERTUS_AUDIO:
-+            {
-+                builder = std::make_unique<clip_graph_apertus_audio>(ctx, img);
-+            } break;
-         case PROJECTOR_TYPE_STEP3VL:
-             {
-                 builder = std::make_unique<clip_graph_step3vl>(ctx, img);
-@@ -1987,6 +2017,22 @@
-                         hparams.set_limit_image_tokens(1, 4096);
-                         hparams.set_warmup_n_tokens(32*32);
-                     } break;
-+                case PROJECTOR_TYPE_APERTUS_VISION:
-+                    {
-+                        hparams.n_merge = 1;
-+                        hparams.image_resize_algo = RESIZE_ALGO_BICUBIC;
-+                        hparams.image_resize_pad = PAD_NONE;
-+                        get_u32(KEY_IMAGE_MIN_PIXELS, hparams.image_min_pixels);
-+                        get_u32(KEY_IMAGE_MAX_PIXELS, hparams.image_max_pixels);
-+                        get_u32(KEY_V_CODEBOOK_SIZE, hparams.codebook_size);
-+                        get_u32(KEY_V_CODEBOOK_DIM, hparams.codebook_dim);
-+                        get_u32(KEY_V_TOKEN_OFFSET, hparams.token_offset);
-+                        get_u32(KEY_V_SPATIAL_FACTOR, hparams.vision_spatial_factor);
-+                        get_u32(KEY_V_RESIDUAL_BLOCK_COUNT, hparams.vision_residual_block_count);
-+                        get_arr_int(KEY_V_CHANNEL_MULTIPLIERS, hparams.vision_channel_multipliers, true);
-+                        get_arr_int(KEY_V_ATTENTION_LEVELS, hparams.vision_attention_levels, true);
-+                        hparams.warmup_image_size = hparams.image_size;
-+                    } break;
-                 case PROJECTOR_TYPE_MIMOVL:
-                     {
-                         hparams.n_merge = 2; // spatial_merge_size
-@@ -2340,6 +2386,20 @@
-                         hparams.eps               = 1e-6f;
-                         hparams.n_mel_bins        = 640;
-                     } break;
-+                case PROJECTOR_TYPE_APERTUS_AUDIO:
-+                    {
-+                        get_u32(KEY_A_CODEBOOK_SIZE, hparams.codebook_size);
-+                        get_u32(KEY_A_CODEBOOK_DIM, hparams.codebook_dim);
-+                        get_u32(KEY_A_TOKEN_OFFSET, hparams.token_offset);
-+                        get_u32(KEY_A_SAMPLE_RATE, hparams.audio_sample_rate);
-+                        get_u32(KEY_A_HOP_LENGTH, hparams.audio_hop_len);
-+                        get_u32(KEY_A_RESIDUAL_BLOCK_COUNT, hparams.audio_residual_block_count);
-+                        get_u32(KEY_A_DILATION_GROWTH_RATE, hparams.audio_dilation_growth_rate);
-+                        get_u32(KEY_A_LSTM_BLOCK_COUNT, hparams.audio_lstm_block_count);
-+                        get_arr_int(KEY_A_DOWNSAMPLE_RATIOS, hparams.audio_downsample_ratios, true);
-+                        hparams.audio_chunk_len = 0;
-+                        hparams.n_mel_bins = 1;
-+                    } break;
-                 case PROJECTOR_TYPE_GRANITE_SPEECH:
-                     {
-                         hparams.audio_chunk_len        = 0;
-@@ -2458,7 +2518,8 @@
-                 // Muse Spark is encoder-free in the same sense: its conv pyramid reads the raw waveform, one channel takes the place of the mel bins
-                 const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
-                                        model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
--                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC;
-+                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC &&
-+                                       model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO;
- 
-                 // Validate audio hparams loaded from GGUF metadata
-                 if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-@@ -2623,7 +2684,9 @@
-             model.proj_type != PROJECTOR_TYPE_QWEN3TTS_SPKENC &&
-             model.proj_type != PROJECTOR_TYPE_POCKETTTS_GEN &&
-             model.proj_type != PROJECTOR_TYPE_SOPRANO &&
--            model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO);
-+            model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
-+            model.proj_type != PROJECTOR_TYPE_APERTUS_VISION &&
-+            model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO);
- 
-         // layers
-         const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
-@@ -4189,6 +4252,152 @@
-                     model.mm_0_w = get_tensor(string_format(TN_LLAVA_PROJ, 0, "weight"));
-                     model.mm_0_b = get_tensor(string_format(TN_LLAVA_PROJ, 0, "bias"));
-                 } break;
-+            case PROJECTOR_TYPE_APERTUS_VISION:
-+                {
-+                    // Build the GGUF name with string_format. `stem + ".norm1.weight"`
-+                    // was compiled down to a lookup of `stem` alone (clip_init:
-+                    // "unable to find tensor v.encoder.down.0.block.0").
-+                    auto apertus_tensor = [&](const std::string & stem, const char * leaf, bool required = true) {
-+                        return get_tensor(string_format("%s%s", stem.c_str(), leaf), required);
-+                    };
-+                    auto load_resblock = [&](apertus_vision_resblock & block, const std::string & stem) {
-+                        block.norm1_w = apertus_tensor(stem, ".norm1.weight");
-+                        block.norm1_b = apertus_tensor(stem, ".norm1.bias");
-+                        block.conv1_w = apertus_tensor(stem, ".conv1.weight");
-+                        block.conv1_b = apertus_tensor(stem, ".conv1.bias");
-+                        block.norm2_w = apertus_tensor(stem, ".norm2.weight");
-+                        block.norm2_b = apertus_tensor(stem, ".norm2.bias");
-+                        block.conv2_w = apertus_tensor(stem, ".conv2.weight");
-+                        block.conv2_b = apertus_tensor(stem, ".conv2.bias");
-+                        block.shortcut_w = apertus_tensor(stem, ".nin_shortcut.weight", false);
-+                        block.shortcut_b = apertus_tensor(stem, ".nin_shortcut.bias", false);
-+                    };
-+                    auto load_attention = [&](apertus_vision_attention & attention, const std::string & stem) {
-+                        attention.norm_w = apertus_tensor(stem, ".norm.weight");
-+                        attention.norm_b = apertus_tensor(stem, ".norm.bias");
-+                        attention.q_w = apertus_tensor(stem, ".q.weight");
-+                        attention.q_b = apertus_tensor(stem, ".q.bias");
-+                        attention.k_w = apertus_tensor(stem, ".k.weight");
-+                        attention.k_b = apertus_tensor(stem, ".k.bias");
-+                        attention.v_w = apertus_tensor(stem, ".v.weight");
-+                        attention.v_b = apertus_tensor(stem, ".v.bias");
-+                        attention.out_w = apertus_tensor(stem, ".proj_out.weight");
-+                        attention.out_b = apertus_tensor(stem, ".proj_out.bias");
-+                    };
-+                    model.apertus_v_conv_in_w = get_tensor(string_format(TN_APERTUS_V_CONV_IN, "weight"));
-+                    model.apertus_v_conv_in_b = get_tensor(string_format(TN_APERTUS_V_CONV_IN, "bias"));
-+                    model.apertus_v_stages.resize(hparams.vision_channel_multipliers.size());
-+                    for (size_t stage_id = 0; stage_id < model.apertus_v_stages.size(); ++stage_id) {
-+                        auto & stage = model.apertus_v_stages[stage_id];
-+                        stage.blocks.resize(hparams.vision_residual_block_count);
-+                        const bool has_attn = std::find(hparams.vision_attention_levels.begin(),
-+                                                        hparams.vision_attention_levels.end(),
-+                                                        (int32_t) stage_id) != hparams.vision_attention_levels.end();
-+                        if (has_attn) {
-+                            stage.attentions.resize(hparams.vision_residual_block_count);
-+                        }
-+                        for (int block_id = 0; block_id < hparams.vision_residual_block_count; ++block_id) {
-+                            load_resblock(stage.blocks[block_id],
-+                                          string_format("v.encoder.down.%d.block.%d", (int) stage_id, block_id));
-+                            if (has_attn) {
-+                                load_attention(stage.attentions[block_id],
-+                                               string_format("v.encoder.down.%d.attn.%d", (int) stage_id, block_id));
-+                            }
-+                        }
-+                        if (stage_id + 1 < model.apertus_v_stages.size()) {
-+                            stage.downsample_w = get_tensor(string_format(TN_APERTUS_V_DOWNSAMPLE, (int) stage_id, "weight"));
-+                            stage.downsample_b = get_tensor(string_format(TN_APERTUS_V_DOWNSAMPLE, (int) stage_id, "bias"));
-+                        }
-+                    }
-+                    load_resblock(model.apertus_v_mid_block_1, "v.encoder.mid.block_1");
-+                    load_attention(model.apertus_v_mid_attention, "v.encoder.mid.attn_1");
-+                    load_resblock(model.apertus_v_mid_block_2, "v.encoder.mid.block_2");
-+                    model.apertus_v_norm_out_w = get_tensor(string_format(TN_APERTUS_V_NORM_OUT, "weight"));
-+                    model.apertus_v_norm_out_b = get_tensor(string_format(TN_APERTUS_V_NORM_OUT, "bias"));
-+                    model.apertus_v_conv_out_w = get_tensor(string_format(TN_APERTUS_V_CONV_OUT, "weight"));
-+                    model.apertus_v_conv_out_b = get_tensor(string_format(TN_APERTUS_V_CONV_OUT, "bias"));
-+                    model.apertus_v_quant_conv_w = get_tensor(string_format(TN_APERTUS_V_QUANT_CONV, "weight"));
-+                    model.apertus_v_quant_conv_b = get_tensor(string_format(TN_APERTUS_V_QUANT_CONV, "bias"));
-+                    model.apertus_v_codebook = get_tensor(TN_APERTUS_V_CODEBOOK);
-+                    if (model.apertus_v_codebook->ne[0] != hparams.codebook_dim ||
-+                        model.apertus_v_codebook->ne[1] != hparams.codebook_size) {
-+                        throw std::runtime_error(string_format(
-+                            "%s: Apertus vision codebook shape does not match metadata\n", __func__));
-+                    }
-+                } break;
-+            case PROJECTOR_TYPE_APERTUS_AUDIO:
-+                {
-+                    // WavTokenizer numbers layers densely in the Python module but
-+                    // only some of those indices have parameters (activations are
-+                    // skipped). Discover IDs from the GGUF instead of assuming
-+                    // 0,2,4,... / 1,3,5,... — official 1.5 is 0,3,6,9,12,15 / 1,4,7,10.
-+                    std::vector<int> conv_layer_ids;
-+                    std::vector<int> resblock_layer_ids;
-+                    int lstm_layer_id = -1;
-+                    auto full_match = [](const std::string & name, const char * fmt, int & id) {
-+                        int consumed = 0;
-+                        if (sscanf(name.c_str(), fmt, &id, &consumed) != 1) {
-+                            return false;
-+                        }
-+                        return consumed == (int) name.size();
-+                    };
-+                    for (const auto & [name, offset] : tensor_offset) {
-+                        (void) offset;
-+                        int id = -1;
-+                        if (full_match(name, "a.encoder.layers.%d.conv.weight%n", id)) {
-+                            conv_layer_ids.push_back(id);
-+                        } else if (full_match(name, "a.encoder.layers.%d.block.1.conv.weight%n", id)) {
-+                            resblock_layer_ids.push_back(id);
-+                        } else if (full_match(name, "a.encoder.layers.%d.lstm.weight_ih_l0%n", id)) {
-+                            lstm_layer_id = id;
-+                        }
-+                    }
-+                    std::sort(conv_layer_ids.begin(), conv_layer_ids.end());
-+                    std::sort(resblock_layer_ids.begin(), resblock_layer_ids.end());
-+                    if (conv_layer_ids.size() != hparams.audio_downsample_ratios.size() + 2 ||
-+                        resblock_layer_ids.size() != hparams.audio_downsample_ratios.size() ||
-+                        lstm_layer_id < 0) {
-+                        throw std::runtime_error(string_format(
-+                            "%s: unexpected Apertus audio encoder layout (convs=%zu resblocks=%zu lstm=%d, expected %zu/%zu)\n",
-+                            __func__,
-+                            conv_layer_ids.size(),
-+                            resblock_layer_ids.size(),
-+                            lstm_layer_id,
-+                            hparams.audio_downsample_ratios.size() + 2,
-+                            hparams.audio_downsample_ratios.size()));
-+                    }
-+                    model.apertus_a_convs.resize(conv_layer_ids.size());
-+                    for (size_t i = 0; i < model.apertus_a_convs.size(); ++i) {
-+                        auto & conv = model.apertus_a_convs[i];
-+                        conv.w = get_tensor(string_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "weight"));
-+                        conv.b = get_tensor(string_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "bias"));
-+                    }
-+                    model.apertus_a_resblocks.resize(resblock_layer_ids.size());
-+                    for (size_t i = 0; i < model.apertus_a_resblocks.size(); ++i) {
-+                        const int layer_id = resblock_layer_ids[i];
-+                        auto & block = model.apertus_a_resblocks[i];
-+                        block.conv1.w = get_tensor(string_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 1, "weight"));
-+                        block.conv1.b = get_tensor(string_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 1, "bias"));
-+                        block.conv2.w = get_tensor(string_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 3, "weight"));
-+                        block.conv2.b = get_tensor(string_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 3, "bias"));
-+                        block.shortcut.w = get_tensor(string_format(TN_APERTUS_A_SHORTCUT, layer_id, "weight"));
-+                        block.shortcut.b = get_tensor(string_format(TN_APERTUS_A_SHORTCUT, layer_id, "bias"));
-+                    }
-+                    model.apertus_a_lstm_layers.resize(hparams.audio_lstm_block_count);
-+                    for (int layer_id = 0; layer_id < hparams.audio_lstm_block_count; ++layer_id) {
-+                        auto & layer = model.apertus_a_lstm_layers[layer_id];
-+                        layer.weight_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_ih", layer_id));
-+                        layer.weight_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_hh", layer_id));
-+                        layer.bias_ih = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_ih", layer_id));
-+                        layer.bias_hh = get_tensor(string_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_hh", layer_id));
-+                    }
-+                    model.apertus_a_codebook = get_tensor(TN_APERTUS_A_CODEBOOK);
-+                    if (model.apertus_a_codebook->ne[0] != hparams.codebook_dim ||
-+                        model.apertus_a_codebook->ne[1] != hparams.codebook_size) {
-+                        throw std::runtime_error(string_format(
-+                            "%s: Apertus audio codebook shape does not match metadata\n", __func__));
-+                    }
-+                } break;
-             default:
-                 GGML_ASSERT(false && "unknown projector type");
-         }
-@@ -4279,7 +4488,8 @@
-         } else {
-             // GEMMA4UA uses n_mel_bins as a raw-waveform frame size (640), not a mel-bin count,
-             // so the [1, 256] bound only applies to FFT-based models.
--            const bool fft_based = ctx_clip.model.proj_type != PROJECTOR_TYPE_GEMMA4UA;
-+            const bool fft_based = ctx_clip.model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
-+                                   ctx_clip.model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO;
-             if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
-                 throw std::runtime_error(string_format("%s: invalid n_mel_bins (%d), must be in [1, 256]\n", __func__, hparams.n_mel_bins));
-             }
-@@ -4679,6 +4889,8 @@
-         case PROJECTOR_TYPE_MUSE_GLIMMER:
-         case PROJECTOR_TYPE_LFM3VL:
-             return (img->nx() / params.patch_size) / 2;
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+            return img->nx() / params.vision_spatial_factor;
-         case PROJECTOR_TYPE_STEP3VL:
-         case PROJECTOR_TYPE_MINICPMV4_6:
-         case PROJECTOR_TYPE_MINICPMV4_7:
-@@ -4712,6 +4924,8 @@
-         case PROJECTOR_TYPE_MUSE_GLIMMER:
-         case PROJECTOR_TYPE_LFM3VL:
-             return (img->ny() / params.patch_size) / 2;
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+            return img->ny() / params.vision_spatial_factor;
-         case PROJECTOR_TYPE_STEP3VL:
-         case PROJECTOR_TYPE_MINICPMV4_6:
-         case PROJECTOR_TYPE_MINICPMV4_7:
-@@ -5052,6 +5266,15 @@
-                     n_patches += h * (w + 1);
-                 }
-             } break;
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+            {
-+                n_patches = (img->nx() / params.vision_spatial_factor) *
-+                            (img->ny() / params.vision_spatial_factor);
-+            } break;
-+        case PROJECTOR_TYPE_APERTUS_AUDIO:
-+            {
-+                n_patches = (img->nx() + params.audio_hop_len - 1) / params.audio_hop_len;
-+            } break;
-         default:
-             GGML_ABORT("unsupported projector type");
-     }
-@@ -5061,19 +5284,21 @@
-     return n_patches;
- }
- 
--bool clip_image_encode(struct clip_ctx * ctx, int n_threads, const clip_image_f32 * img, std::vector<float> & out_vec) {
-+bool clip_image_encode(struct clip_ctx * ctx, int n_threads, const clip_image_f32 * img, std::vector<float> & out_vec, std::vector<int32_t> * out_tokens) {
-     clip_image_f32_batch imgs;
-+    imgs.is_audio = ctx->model.modality == CLIP_MODALITY_AUDIO;
-     clip_image_f32 img_copy = *img;
-     imgs.entries.push_back(std::move(img_copy));
- 
--    return clip_image_batch_encode(ctx, n_threads, &imgs, out_vec);
-+    return clip_image_batch_encode(ctx, n_threads, &imgs, out_vec, out_tokens);
- }
- 
--bool clip_image_batch_encode(clip_ctx * ctx, int n_threads, const clip_image_f32_batch * imgs_c_ptr, std::vector<float> & out_batch_embd) {
-+bool clip_image_batch_encode(clip_ctx * ctx, int n_threads, const clip_image_f32_batch * imgs_c_ptr, std::vector<float> & out_batch_embd, std::vector<int32_t> * out_tokens) {
-     clip_encode_params params;
-     params.imgs = imgs_c_ptr;
-     params.n_threads = n_threads;
-     params.out_embd = &out_batch_embd;
-+    params.out_tokens = out_tokens;
- 
-     return clip_encode(ctx, &params);
- }
-@@ -5219,6 +5444,16 @@
-     const clip_image_f32_batch & imgs = *params->imgs;
-     int n_batch_cur = imgs.entries.size();
- 
-+    if (ctx->proj_type() == PROJECTOR_TYPE_APERTUS_AUDIO && !imgs.entries.empty()) {
-+        const int64_t n_audio_tokens = clip_n_output_tokens(ctx, &imgs.entries.front());
-+        const int64_t required_nodes = std::max<int64_t>(8192, 2048 + 64 * n_audio_tokens);
-+        if (required_nodes > std::numeric_limits<int>::max()) {
-+            LOG_ERR("%s: Apertus audio graph is too large (%" PRId64 " nodes)\n", __func__, required_nodes);
-+            return false;
-+        }
-+        ctx->ensure_graph_capacity((int) required_nodes);
-+    }
-+
-     // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
-     if (!ctx->support_batch && n_batch_cur > clip_model_n_temporal_merge(ctx)) {
-         LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, clip_model_n_temporal_merge(ctx));
-@@ -5241,7 +5476,8 @@
- 
-     // the last node is the embedding tensor, code2wav has no out_embd
-     // read it before scheduling: backends may reorder the nodes of graphs with several outputs (Metal)
--    ggml_tensor * embeddings = params->out_embd ? ggml_graph_node(gf, -1) : nullptr;
-+    ggml_tensor * output = ggml_graph_node(gf, -1);
-+    ggml_tensor * embeddings = (!clip_outputs_tokens(ctx) && params->out_embd) ? output : nullptr;
- 
-     if (!ggml_backend_sched_alloc_graph(ctx->sched.get(), gf)) {
-         LOG_ERR("%s: failed to allocate compute graph\n", __func__);
-@@ -5420,6 +5656,11 @@
- 
-     // set input per projector
-     switch (ctx->model.proj_type) {
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+        case PROJECTOR_TYPE_APERTUS_AUDIO:
-+            {
-+                // These encoders only require inp_raw.
-+            } break;
-         case PROJECTOR_TYPE_VOXTRAL_RT:
-             {
-                 clip_enc_state * st = params->enc_state;
-@@ -6777,6 +7018,35 @@
-         return false;
-     }
- 
-+    if (clip_outputs_tokens(ctx)) {
-+        if (output->type != GGML_TYPE_I32) {
-+            LOG_ERR("%s: expected token ID output, got %s\n", __func__, ggml_type_name(output->type));
-+            return false;
-+        }
-+
-+        const int expected_n_tokens_out = clip_n_output_tokens(ctx, &imgs.entries[0]) * n_batch_cur;
-+        if (ggml_nelements(output) != expected_n_tokens_out) {
-+            LOG_ERR("%s: expected %d output tokens, got %zu\n", __func__, expected_n_tokens_out,
-+                    (size_t) ggml_nelements(output));
-+            return false;
-+        }
-+        if (params->out_tokens == nullptr) {
-+            LOG_ERR("%s: token output buffer was not provided\n", __func__);
-+            return false;
-+        }
-+
-+        if (params->out_embd != nullptr) {
-+            params->out_embd->clear();
-+        }
-+        params->out_tokens->resize(expected_n_tokens_out);
-+        ggml_backend_tensor_get(output, params->out_tokens->data(), 0, ggml_nbytes(output));
-+        for (int32_t & token : *params->out_tokens) {
-+            token += hparams.token_offset;
-+        }
-+        LOG_DBG("%s: output token shape [%d]\n", __func__, expected_n_tokens_out);
-+        return true;
-+    }
-+
-     if (embeddings != nullptr) {
-         // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
-         const int n_tokens_out = embeddings->ne[1];
-@@ -7070,11 +7340,19 @@
-             return ctx->model.hparams.projection_dim;
-         case PROJECTOR_TYPE_PARAKEET:
-             return ctx->model.mm_1_w->ne[1];
-+        case PROJECTOR_TYPE_APERTUS_VISION:
-+        case PROJECTOR_TYPE_APERTUS_AUDIO:
-+            return ctx->model.hparams.projection_dim;
-         default:
-             GGML_ABORT("Unknown projector type");
-     }
- }
- 
-+bool clip_outputs_tokens(const struct clip_ctx * ctx) {
-+    return ctx->model.proj_type == PROJECTOR_TYPE_APERTUS_VISION ||
-+           ctx->model.proj_type == PROJECTOR_TYPE_APERTUS_AUDIO;
-+}
-+
- bool clip_is_llava(const struct clip_ctx * ctx) {
-     return ctx->model.hparams.has_llava_projector;
- }
-diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/clip.h b/tools/mtmd/clip.h
---- a/tools/mtmd/clip.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/clip.h	2026-10-29 03:55:23.353257411 +0100
-@@ -89,8 +89,8 @@
- int clip_n_mmproj_embd(const struct clip_ctx * ctx);
- 
- // TODO: remove clip_image_encode() and always use batched version
--bool clip_image_encode      (struct clip_ctx * ctx, int n_threads, const clip_image_f32 * img, std::vector<float> & out_vec);
--bool clip_image_batch_encode(struct clip_ctx * ctx, int n_threads, const struct clip_image_f32_batch * imgs, std::vector<float> & out_batch_embd);
-+bool clip_image_encode      (struct clip_ctx * ctx, int n_threads, const clip_image_f32 * img, std::vector<float> & out_vec, std::vector<int32_t> * out_tokens = nullptr);
-+bool clip_image_batch_encode(struct clip_ctx * ctx, int n_threads, const struct clip_image_f32_batch * imgs, std::vector<float> & out_batch_embd, std::vector<int32_t> * out_tokens = nullptr);
- 
- enum clip_gen_process_type {
-     CLIP_GEN_PROCESS_GEN_UNKNOWN,
-@@ -101,6 +101,7 @@
-     int n_threads = 1;
-     const clip_image_f32_batch * imgs = nullptr;
-     std::vector<float> * out_embd = nullptr;
-+    std::vector<int32_t> * out_tokens = nullptr;
- 
-     // for audio gen, imgs has exactly one entry: hidden state from backbone (GEN_CODE) or unused (GEN_WAV)
-     clip_gen_process_type gen_process = CLIP_GEN_PROCESS_GEN_UNKNOWN;
-@@ -145,6 +146,7 @@
- 
- bool clip_has_vision_encoder(const struct clip_ctx * ctx);
- bool clip_has_audio_encoder(const struct clip_ctx * ctx);
-+bool clip_outputs_tokens(const struct clip_ctx * ctx);
- 
- bool clip_support_batch(const struct clip_ctx * ctx);
- 
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-audio.cpp b/tools/mtmd/models/apertus-audio.cpp
 --- a/tools/mtmd/models/apertus-audio.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/tools/mtmd/models/apertus-audio.cpp	2026-10-29 03:55:23.353381292 +0100
++++ b/tools/mtmd/models/apertus-audio.cpp	2026-11-14 06:19:27.100356482 +0100
 @@ -0,0 +1,210 @@
 +#include "models.h"
 +
@@ -1640,7 +973,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-audio
 +    return ggml_add(ctx0, sequence, residual);
 +}
 +
-+ggml_cgraph * clip_graph_apertus_audio::build() {
++ggml_cgraph * mtmd_graph_apertus_audio::build() {
 +    GGML_ASSERT(n_batch == 1);
 +    GGML_ASSERT(model.apertus_a_convs.size() == hparams.audio_downsample_ratios.size() + 2);
 +    GGML_ASSERT(model.apertus_a_resblocks.size() == hparams.audio_downsample_ratios.size());
@@ -1694,7 +1027,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-audio
 +}
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-vision.cpp b/tools/mtmd/models/apertus-vision.cpp
 --- a/tools/mtmd/models/apertus-vision.cpp	1970-01-01 01:00:00.000000000 +0100
-+++ b/tools/mtmd/models/apertus-vision.cpp	2026-10-29 03:55:23.353467843 +0100
++++ b/tools/mtmd/models/apertus-vision.cpp	2026-11-14 06:19:27.100310501 +0100
 @@ -0,0 +1,158 @@
 +#include "models.h"
 +
@@ -1803,7 +1136,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-visio
 +    return ggml_add(ctx0, residual, cur);
 +}
 +
-+ggml_cgraph * clip_graph_apertus_vision::build() {
++ggml_cgraph * mtmd_graph_apertus_vision::build() {
 +    GGML_ASSERT(n_batch == 1);
 +
 +    ggml_tensor * cur = build_inp_raw();
@@ -1855,26 +1188,26 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/apertus-visio
 +    return gf;
 +}
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/models/models.h b/tools/mtmd/models/models.h
---- a/tools/mtmd/models/models.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/models/models.h	2026-10-29 03:55:23.353528674 +0100
-@@ -519,3 +519,13 @@
-     clip_graph_muse_glimmer(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
+--- a/tools/mtmd/models/models.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/models/models.h	2026-11-14 06:19:27.100255341 +0100
+@@ -628,3 +628,13 @@
+     mtmd_graph_muse_glimmer(mtmd_subcontext * ctx, const mtmd_image_f32 & img) : mtmd_graph(ctx, img) {}
      ggml_cgraph * build() override;
  };
 +
-+struct clip_graph_apertus_vision : clip_graph {
-+    clip_graph_apertus_vision(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
++struct mtmd_graph_apertus_vision : mtmd_graph {
++    mtmd_graph_apertus_vision(mtmd_subcontext * ctx, const mtmd_image_f32 & img) : mtmd_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
 +
-+struct clip_graph_apertus_audio : clip_graph {
-+    clip_graph_apertus_audio(clip_ctx * ctx, const clip_image_f32 & img) : clip_graph(ctx, img) {}
++struct mtmd_graph_apertus_audio : mtmd_graph {
++    mtmd_graph_apertus_audio(mtmd_subcontext * ctx, const mtmd_image_f32 & img) : mtmd_graph(ctx, img) {}
 +    ggml_cgraph * build() override;
 +};
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.cpp b/tools/mtmd/mtmd-audio.cpp
---- a/tools/mtmd/mtmd-audio.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-audio.cpp	2026-10-29 03:55:23.353674015 +0100
-@@ -1536,6 +1536,45 @@
+--- a/tools/mtmd/mtmd-audio.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-audio.cpp	2026-11-14 06:19:27.101295025 +0100
+@@ -1882,6 +1882,47 @@
  }
  
  //
@@ -1905,9 +1238,11 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.cpp b/too
 +    return true;
 +}
 +
-+bool mtmd_audio_preprocessor_apertus::preprocess(const float *                 samples,
-+                                                  size_t                        n_samples,
-+                                                  std::vector<mtmd_audio_mel> & output) const {
++bool mtmd_audio_preprocessor_apertus::process(const float *                 samples,
++                                               size_t                        n_samples,
++                                               std::vector<mtmd_audio_mel> & output,
++                                               bool                          shape_only) const {
++    (void) shape_only;
 +    mtmd_audio_mel waveform;
 +    if (!mtmd_apertus_audio_prepare(samples, n_samples, waveform)) {
 +        return false;
@@ -1921,26 +1256,44 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.cpp b/too
  //
  
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-audio.h b/tools/mtmd/mtmd-audio.h
---- a/tools/mtmd/mtmd-audio.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-audio.h	2026-10-29 03:55:23.353812726 +0100
-@@ -128,6 +128,14 @@
-     bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
+--- a/tools/mtmd/mtmd-audio.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-audio.h	2026-11-14 06:19:27.101092642 +0100
+@@ -179,6 +179,14 @@
+     bool process(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output, bool shape_only) const override;
  };
  
 +bool mtmd_apertus_audio_prepare(const float * samples, size_t n_samples, mtmd_audio_mel & output);
 +
 +struct mtmd_audio_preprocessor_apertus : mtmd_audio_preprocessor {
-+    mtmd_audio_preprocessor_apertus(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
++    mtmd_audio_preprocessor_apertus(const mtmd_model * model) : mtmd_audio_preprocessor(model) {}
 +    void initialize() override;
-+    bool preprocess(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output) const override;
++    bool process(const float * samples, size_t n_samples, std::vector<mtmd_audio_mel> & output, bool shape_only) const override;
 +};
 +
  struct mtmd_audio_preprocessor_qwen3a : mtmd_audio_preprocessor {
-     mtmd_audio_preprocessor_qwen3a(const clip_ctx * ctx) : mtmd_audio_preprocessor(ctx) {}
+     mtmd_audio_preprocessor_qwen3a(const mtmd_model * model) : mtmd_audio_preprocessor(model) {}
      void initialize() override;
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-graph.cpp b/tools/mtmd/mtmd-graph.cpp
+--- a/tools/mtmd/mtmd-graph.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-graph.cpp	2026-11-14 06:19:27.100433633 +0100
+@@ -1052,6 +1052,14 @@
+             {
+                 builder = std::make_unique<mtmd_graph_granite4_vision>(ctx, img);
+             } break;
++        case PROJECTOR_TYPE_APERTUS_VISION:
++            {
++                builder = std::make_unique<mtmd_graph_apertus_vision>(ctx, img);
++            } break;
++        case PROJECTOR_TYPE_APERTUS_AUDIO:
++            {
++                builder = std::make_unique<mtmd_graph_apertus_audio>(ctx, img);
++            } break;
+         default:
+             GGML_ABORT("missing cgraph builder");
+     }
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.cpp b/tools/mtmd/mtmd-helper.cpp
---- a/tools/mtmd/mtmd-helper.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-helper.cpp	2026-10-29 03:55:23.353930437 +0100
+--- a/tools/mtmd/mtmd-helper.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-helper.cpp	2026-11-14 06:10:21.250550416 +0100
 @@ -201,6 +201,62 @@
      return 0;
  }
@@ -2024,9 +1377,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.cpp b/to
              LOG_ERR("failed to decode %s\n", name);
              return ret;
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.h b/tools/mtmd/mtmd-helper.h
---- a/tools/mtmd/mtmd-helper.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-helper.h	2026-10-29 03:55:23.354075238 +0100
-@@ -141,6 +141,18 @@
+--- a/tools/mtmd/mtmd-helper.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-helper.h	2026-11-14 06:10:21.250649128 +0100
+@@ -154,6 +154,18 @@
                                                  mtmd_helper_post_decode_callback callback,
                                                  void * user_data);
  
@@ -2046,14 +1399,14 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-helper.h b/tool
  // video input helpers (requires ffmpeg/ffprobe installed on the system)
  // the notion of video only exists at the helper level, it is not visible to the core mtmd library
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/tools/mtmd/mtmd-image.cpp
---- a/tools/mtmd/mtmd-image.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-image.cpp	2026-10-29 03:55:23.354228979 +0100
-@@ -950,6 +950,69 @@
+--- a/tools/mtmd/mtmd-image.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-image.cpp	2026-11-14 06:19:27.101018041 +0100
+@@ -993,6 +993,69 @@
      return output;
  }
  
-+clip_image_size mtmd_apertus_image_calc_size(
-+        clip_image_size original_size,
++mtmd_image_size mtmd_apertus_image_calc_size(
++        mtmd_image_size original_size,
 +        int spatial_factor,
 +        int min_pixels,
 +        int max_pixels) {
@@ -2076,10 +1429,10 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/too
 +    };
 +}
 +
-+clip_image_f32 mtmd_apertus_image_prepare(
-+        const clip_image_u8 & image,
-+        clip_image_size target_size) {
-+    clip_image_u8 resized_image;
++mtmd_image_f32 mtmd_apertus_image_prepare(
++        const mtmd_image_u8 & image,
++        mtmd_image_size target_size) {
++    mtmd_image_u8 resized_image;
 +    img_tool::resize(image, resized_image, target_size,
 +                     RESIZE_ALGO_BICUBIC, PAD_NONE);
 +
@@ -2089,7 +1442,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/too
 +        normalized_pixels.push_back(((float) pixel - 127.5f) / 127.5f);
 +    }
 +
-+    clip_image_f32 normalized_image;
++    mtmd_image_f32 normalized_image;
 +    normalized_image.set_size(target_size, false, false);
 +    normalized_image.cpy_buf(normalized_pixels);
 +    return normalized_image;
@@ -2099,16 +1452,16 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/too
 +// mtmd_image_preprocessor_apertus
 +//
 +
-+mtmd_image_preproc_out mtmd_image_preprocessor_apertus::preprocess(const clip_image_u8 & img) const {
++mtmd_image_preproc_out mtmd_image_preprocessor_apertus::preprocess(const mtmd_image_u8 & img) const {
 +    GGML_ASSERT(hparams.image_min_pixels > 0 && hparams.image_max_pixels > 0);
 +    GGML_ASSERT(hparams.vision_spatial_factor > 0);
 +
-+    const clip_image_size target_size = mtmd_apertus_image_calc_size(
++    const mtmd_image_size target_size = mtmd_apertus_image_calc_size(
 +        img.get_size(),
 +        hparams.vision_spatial_factor,
 +        hparams.image_min_pixels,
 +        hparams.image_max_pixels);
-+    clip_image_f32 normalized_image = mtmd_apertus_image_prepare(img, target_size);
++    mtmd_image_f32 normalized_image = mtmd_apertus_image_prepare(img, target_size);
 +
 +    mtmd_image_preproc_out output;
 +    output.append(hparams, normalized_image, false);
@@ -2119,36 +1472,630 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.cpp b/too
  // mtmd_image_preprocessor_longest_edge
  //
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-image.h b/tools/mtmd/mtmd-image.h
---- a/tools/mtmd/mtmd-image.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd-image.h	2026-10-29 04:00:53.555909674 +0100
+--- a/tools/mtmd/mtmd-image.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-image.h	2026-11-14 06:19:27.100497484 +0100
 @@ -135,6 +135,22 @@
  // resize image to multiple of patch_size*n_merge, while preserving aspect ratio
  // if image_resize_pad is true, the resized image will be padded, otherwise it will be either stretched or center-cropped depending on image_resize_pad
  // this is used by models with native support for dynamic image size, for example: Qwen-VL, Pixtral, Kimi-VL, etc
-+clip_image_size mtmd_apertus_image_calc_size(
-+        clip_image_size original_size,
++mtmd_image_size mtmd_apertus_image_calc_size(
++        mtmd_image_size original_size,
 +        int spatial_factor,
 +        int min_pixels,
 +        int max_pixels);
 +
-+clip_image_f32 mtmd_apertus_image_prepare(
-+        const clip_image_u8 & image,
-+        clip_image_size target_size);
++mtmd_image_f32 mtmd_apertus_image_prepare(
++        const mtmd_image_u8 & image,
++        mtmd_image_size target_size);
 +
 +// Apertus clamps the image area first and then rounds both dimensions half-up.
 +struct mtmd_image_preprocessor_apertus : mtmd_image_preprocessor {
-+    mtmd_image_preprocessor_apertus(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
-+    mtmd_image_preproc_out preprocess(const clip_image_u8 & img) const override;
++    mtmd_image_preprocessor_apertus(const mtmd_model * model) : mtmd_image_preprocessor(model) {}
++    mtmd_image_preproc_out preprocess(const mtmd_image_u8 & img) const override;
 +};
 +
  struct mtmd_image_preprocessor_dyn_size : mtmd_image_preprocessor {
-     mtmd_image_preprocessor_dyn_size(const clip_ctx * ctx) : mtmd_image_preprocessor(ctx) {}
-     static clip_image_size get_target_size(const clip_hparams & hparams, const clip_image_size & original_size);
+     mtmd_image_preprocessor_dyn_size(const mtmd_model * model) : mtmd_image_preprocessor(model) {}
+     mtmd_image_preprocessor_dyn_size(const mtmd_hparams & hparams) : mtmd_image_preprocessor(hparams) {}
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-impl.h b/tools/mtmd/mtmd-impl.h
+--- a/tools/mtmd/mtmd-impl.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-impl.h	2026-11-14 06:19:27.091688071 +0100
+@@ -54,6 +54,13 @@
+ #define KEY_IMAGE_SIZE              "clip.vision.image_size"
+ #define KEY_IMAGE_MIN_PIXELS        "clip.vision.image_min_pixels"
+ #define KEY_IMAGE_MAX_PIXELS        "clip.vision.image_max_pixels"
++#define KEY_V_CODEBOOK_SIZE         "clip.vision.codebook_size"
++#define KEY_V_CODEBOOK_DIM          "clip.vision.codebook_dim"
++#define KEY_V_TOKEN_OFFSET          "clip.vision.token_offset"
++#define KEY_V_SPATIAL_FACTOR        "clip.vision.spatial_factor"
++#define KEY_V_CHANNEL_MULTIPLIERS   "clip.vision.channel_multipliers"
++#define KEY_V_RESIDUAL_BLOCK_COUNT  "clip.vision.residual_block_count"
++#define KEY_V_ATTENTION_LEVELS      "clip.vision.attention_levels"
+ #define KEY_PREPROC_MIN_TILES       "clip.vision.preproc_min_tiles"
+ #define KEY_PREPROC_MAX_TILES       "clip.vision.preproc_max_tiles"
+ #define KEY_PREPROC_IMAGE_SIZE      "clip.vision.preproc_image_size"
+@@ -98,6 +105,15 @@
+ #define KEY_A_PROJ_HEAD_COUNT      "clip.audio.projector.head_count"
+ #define KEY_A_RVQ_NUM_QUANTIZERS   "clip.audio.rvq.num_quantizers"   // mimo-audio-tokenizer
+ #define KEY_A_RVQ_CODEBOOK_SIZE    "clip.audio.rvq.codebook_size"    // mimo-audio-tokenizer: per-quantizer bin count
++#define KEY_A_CODEBOOK_SIZE          "clip.audio.codebook_size"
++#define KEY_A_CODEBOOK_DIM           "clip.audio.codebook_dim"
++#define KEY_A_TOKEN_OFFSET           "clip.audio.token_offset"
++#define KEY_A_SAMPLE_RATE            "clip.audio.sample_rate"
++#define KEY_A_HOP_LENGTH             "clip.audio.hop_length"
++#define KEY_A_DOWNSAMPLE_RATIOS      "clip.audio.downsample_ratios"
++#define KEY_A_RESIDUAL_BLOCK_COUNT   "clip.audio.residual_block_count"
++#define KEY_A_DILATION_GROWTH_RATE   "clip.audio.dilation_growth_rate"
++#define KEY_A_LSTM_BLOCK_COUNT       "clip.audio.lstm_block_count"
+ #define KEY_A_WA_PATTERN_MODE      "clip.audio.wa_pattern_mode"      // mimo-audio-tokenizer, per-layer -1 (full) / 0 (windowed)
+ #define KEY_A_ATTN_WINDOW_SIZE     "clip.audio.window_size"          // mimo-audio-tokenizer: sliding-window radius
+ #define KEY_A_LOCAL_BLOCK_COUNT    "clip.audio.local_block_count"    // mimo-v2.5: input_local_transformer layer count
+@@ -122,6 +138,22 @@
+ // tensor name constants
+ //
+ 
++#define TN_APERTUS_V_CONV_IN       "v.encoder.conv_in.%s"
++#define TN_APERTUS_V_CONV_OUT      "v.encoder.conv_out.%s"
++#define TN_APERTUS_V_NORM_OUT      "v.encoder.norm_out.%s"
++#define TN_APERTUS_V_DOWN_BLOCK    "v.encoder.down.%d.block.%d.%s.%s"
++#define TN_APERTUS_V_DOWN_ATTN     "v.encoder.down.%d.attn.%d.%s.%s"
++#define TN_APERTUS_V_DOWNSAMPLE    "v.encoder.down.%d.downsample.conv.%s"
++#define TN_APERTUS_V_MID_BLOCK     "v.encoder.mid.block_%d.%s.%s"
++#define TN_APERTUS_V_MID_ATTN      "v.encoder.mid.attn_1.%s.%s"
++#define TN_APERTUS_V_QUANT_CONV    "v.quant_conv.%s"
++#define TN_APERTUS_V_CODEBOOK      "v.codebook.weight"
++#define TN_APERTUS_A_CONV          "a.encoder.layers.%d.conv.%s"
++#define TN_APERTUS_A_RESBLOCK_CONV "a.encoder.layers.%d.block.%d.conv.%s"
++#define TN_APERTUS_A_SHORTCUT      "a.encoder.layers.%d.shortcut.conv.%s"
++#define TN_APERTUS_A_LSTM          "a.encoder.layers.%d.lstm.%s_l%d"
++#define TN_APERTUS_A_CODEBOOK      "a.codebook.weight"
++
+ #define TN_POS_EMBD        "%s.position_embd.weight"
+ #define TN_CLASS_EMBD      "v.class_embd"
+ #define TN_PATCH_EMBD      "v.patch_embd.weight"  // not rename tensor with ".0" postfix for backward compat
+@@ -577,6 +609,8 @@
+     PROJECTOR_TYPE_MUSE_SPARK_AUDIO,
+     PROJECTOR_TYPE_CHATTERBOX,
+     PROJECTOR_TYPE_CHATTERBOX_SPKENC,
++    PROJECTOR_TYPE_APERTUS_VISION,
++    PROJECTOR_TYPE_APERTUS_AUDIO,
+     PROJECTOR_TYPE_UNKNOWN,
+ };
+ 
+@@ -664,6 +698,8 @@
+     { PROJECTOR_TYPE_MUSE_SPARK_AUDIO,  "muse-spark-audio"},
+     { PROJECTOR_TYPE_CHATTERBOX,        "chatterbox"},
+     { PROJECTOR_TYPE_CHATTERBOX_SPKENC, "chatterbox_spkenc"},
++    { PROJECTOR_TYPE_APERTUS_VISION,    "apertus_vision"},
++    { PROJECTOR_TYPE_APERTUS_AUDIO,     "apertus_audio"},
+ };
+ 
+ static projector_type projector_type_from_string(const std::string & str) {
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-model.cpp b/tools/mtmd/mtmd-model.cpp
+--- a/tools/mtmd/mtmd-model.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-model.cpp	2026-11-14 06:19:27.100028767 +0100
+@@ -11,6 +11,7 @@
+ #include <algorithm>
+ #include <cassert>
+ #include <cmath>
++#include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+ #include <fstream>
+@@ -795,6 +796,24 @@
+                         hparams.set_limit_image_tokens(1, 4096);
+                         hparams.set_warmup_n_tokens(32*32);
+                     } break;
++                case PROJECTOR_TYPE_APERTUS_VISION:
++                    {
++                        hparams.n_merge = 1;
++                        hparams.image_resize_algo = RESIZE_ALGO_BICUBIC;
++                        hparams.image_resize_pad = PAD_NONE;
++                        get_u32(KEY_IMAGE_MIN_PIXELS, hparams.image_min_pixels);
++                        get_u32(KEY_IMAGE_MAX_PIXELS, hparams.image_max_pixels);
++                        get_u32(KEY_V_CODEBOOK_SIZE, hparams.codebook_size);
++                        get_u32(KEY_V_CODEBOOK_DIM, hparams.codebook_dim);
++                        get_u32(KEY_V_TOKEN_OFFSET, hparams.token_offset);
++                        get_u32(KEY_V_SPATIAL_FACTOR, hparams.vision_spatial_factor);
++                        get_u32(KEY_V_RESIDUAL_BLOCK_COUNT, hparams.vision_residual_block_count);
++                        get_arr_int(KEY_V_CHANNEL_MULTIPLIERS, hparams.vision_channel_multipliers, true);
++                        get_arr_int(KEY_V_ATTENTION_LEVELS, hparams.vision_attention_levels, true);
++                        hparams.warmup_image_size = hparams.image_size;
++                        // codebook argmax is chunked; keep headroom over the default graph
++                        model.max_nodes = 65536;
++                    } break;
+                 case PROJECTOR_TYPE_MIMOVL:
+                     {
+                         hparams.n_merge = 2; // spatial_merge_size
+@@ -1183,6 +1202,22 @@
+                         hparams.eps               = 1e-6f;
+                         hparams.n_mel_bins        = 640;
+                     } break;
++                case PROJECTOR_TYPE_APERTUS_AUDIO:
++                    {
++                        get_u32(KEY_A_CODEBOOK_SIZE, hparams.codebook_size);
++                        get_u32(KEY_A_CODEBOOK_DIM, hparams.codebook_dim);
++                        get_u32(KEY_A_TOKEN_OFFSET, hparams.token_offset);
++                        get_u32(KEY_A_SAMPLE_RATE, hparams.audio_sample_rate);
++                        get_u32(KEY_A_HOP_LENGTH, hparams.audio_hop_len);
++                        get_u32(KEY_A_RESIDUAL_BLOCK_COUNT, hparams.audio_residual_block_count);
++                        get_u32(KEY_A_DILATION_GROWTH_RATE, hparams.audio_dilation_growth_rate);
++                        get_u32(KEY_A_LSTM_BLOCK_COUNT, hparams.audio_lstm_block_count);
++                        get_arr_int(KEY_A_DOWNSAMPLE_RATIOS, hparams.audio_downsample_ratios, true);
++                        hparams.audio_chunk_len = 0;
++                        hparams.n_mel_bins = 1;
++                        // the LSTM unrolls once per code; 262144 covers about a minute at 24 kHz
++                        model.max_nodes = 262144;
++                    } break;
+                 case PROJECTOR_TYPE_GRANITE_SPEECH:
+                     {
+                         hparams.audio_chunk_len        = 0;
+@@ -1301,7 +1336,8 @@
+                 // Muse Spark is encoder-free in the same sense: its conv pyramid reads the raw waveform, one channel takes the place of the mel bins
+                 const bool fft_based = model.proj_type != PROJECTOR_TYPE_GEMMA4UA &&
+                                        model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
+-                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC;
++                                       model.proj_type != PROJECTOR_TYPE_POCKETTTS_SPKENC &&
++                                       model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO;
+ 
+                 // Validate audio hparams loaded from GGUF metadata
+                 if (hparams.n_mel_bins <= 0 || (fft_based && hparams.n_mel_bins > 256)) {
+@@ -1453,7 +1489,8 @@
+             model.modality  == MTMD_MODALITY_VISION &&
+             model.proj_type != PROJECTOR_TYPE_GEMMA3NV &&
+             model.proj_type != PROJECTOR_TYPE_DEEPSEEKOCR &&
+-            model.proj_type != PROJECTOR_TYPE_DEEPSEEKOCR2);
++            model.proj_type != PROJECTOR_TYPE_DEEPSEEKOCR2 &&
++            model.proj_type != PROJECTOR_TYPE_APERTUS_VISION);
+ 
+         model.patch_bias = get_tensor(TN_PATCH_BIAS, false);
+         model.patch_embeddings_0 = get_tensor(TN_PATCH_EMBD,   has_patch_embd);
+@@ -1474,7 +1511,9 @@
+             model.proj_type != PROJECTOR_TYPE_SOPRANO &&
+             model.proj_type != PROJECTOR_TYPE_MUSE_SPARK_AUDIO &&
+             model.proj_type != PROJECTOR_TYPE_CHATTERBOX &&
+-            model.proj_type != PROJECTOR_TYPE_CHATTERBOX_SPKENC);
++            model.proj_type != PROJECTOR_TYPE_CHATTERBOX_SPKENC &&
++            model.proj_type != PROJECTOR_TYPE_APERTUS_VISION &&
++            model.proj_type != PROJECTOR_TYPE_APERTUS_AUDIO);
+ 
+         // layers
+         const int n_layers_to_load = has_standard_layers ? hparams.n_layer : 0;
+@@ -3507,6 +3546,152 @@
+                     model.mm_0_w = get_tensor(mtmd_format(TN_LLAVA_PROJ, 0, "weight"));
+                     model.mm_0_b = get_tensor(mtmd_format(TN_LLAVA_PROJ, 0, "bias"));
+                 } break;
++            case PROJECTOR_TYPE_APERTUS_VISION:
++                {
++                    // Build the GGUF name with mtmd_format. `stem + ".norm1.weight"`
++                    // was compiled down to a lookup of `stem` alone (clip_init:
++                    // "unable to find tensor v.encoder.down.0.block.0").
++                    auto apertus_tensor = [&](const std::string & stem, const char * leaf, bool required = true) {
++                        return get_tensor(mtmd_format("%s%s", stem.c_str(), leaf), required);
++                    };
++                    auto load_resblock = [&](apertus_vision_resblock & block, const std::string & stem) {
++                        block.norm1_w = apertus_tensor(stem, ".norm1.weight");
++                        block.norm1_b = apertus_tensor(stem, ".norm1.bias");
++                        block.conv1_w = apertus_tensor(stem, ".conv1.weight");
++                        block.conv1_b = apertus_tensor(stem, ".conv1.bias");
++                        block.norm2_w = apertus_tensor(stem, ".norm2.weight");
++                        block.norm2_b = apertus_tensor(stem, ".norm2.bias");
++                        block.conv2_w = apertus_tensor(stem, ".conv2.weight");
++                        block.conv2_b = apertus_tensor(stem, ".conv2.bias");
++                        block.shortcut_w = apertus_tensor(stem, ".nin_shortcut.weight", false);
++                        block.shortcut_b = apertus_tensor(stem, ".nin_shortcut.bias", false);
++                    };
++                    auto load_attention = [&](apertus_vision_attention & attention, const std::string & stem) {
++                        attention.norm_w = apertus_tensor(stem, ".norm.weight");
++                        attention.norm_b = apertus_tensor(stem, ".norm.bias");
++                        attention.q_w = apertus_tensor(stem, ".q.weight");
++                        attention.q_b = apertus_tensor(stem, ".q.bias");
++                        attention.k_w = apertus_tensor(stem, ".k.weight");
++                        attention.k_b = apertus_tensor(stem, ".k.bias");
++                        attention.v_w = apertus_tensor(stem, ".v.weight");
++                        attention.v_b = apertus_tensor(stem, ".v.bias");
++                        attention.out_w = apertus_tensor(stem, ".proj_out.weight");
++                        attention.out_b = apertus_tensor(stem, ".proj_out.bias");
++                    };
++                    model.apertus_v_conv_in_w = get_tensor(mtmd_format(TN_APERTUS_V_CONV_IN, "weight"));
++                    model.apertus_v_conv_in_b = get_tensor(mtmd_format(TN_APERTUS_V_CONV_IN, "bias"));
++                    model.apertus_v_stages.resize(hparams.vision_channel_multipliers.size());
++                    for (size_t stage_id = 0; stage_id < model.apertus_v_stages.size(); ++stage_id) {
++                        auto & stage = model.apertus_v_stages[stage_id];
++                        stage.blocks.resize(hparams.vision_residual_block_count);
++                        const bool has_attn = std::find(hparams.vision_attention_levels.begin(),
++                                                        hparams.vision_attention_levels.end(),
++                                                        (int32_t) stage_id) != hparams.vision_attention_levels.end();
++                        if (has_attn) {
++                            stage.attentions.resize(hparams.vision_residual_block_count);
++                        }
++                        for (int block_id = 0; block_id < hparams.vision_residual_block_count; ++block_id) {
++                            load_resblock(stage.blocks[block_id],
++                                          mtmd_format("v.encoder.down.%d.block.%d", (int) stage_id, block_id));
++                            if (has_attn) {
++                                load_attention(stage.attentions[block_id],
++                                               mtmd_format("v.encoder.down.%d.attn.%d", (int) stage_id, block_id));
++                            }
++                        }
++                        if (stage_id + 1 < model.apertus_v_stages.size()) {
++                            stage.downsample_w = get_tensor(mtmd_format(TN_APERTUS_V_DOWNSAMPLE, (int) stage_id, "weight"));
++                            stage.downsample_b = get_tensor(mtmd_format(TN_APERTUS_V_DOWNSAMPLE, (int) stage_id, "bias"));
++                        }
++                    }
++                    load_resblock(model.apertus_v_mid_block_1, "v.encoder.mid.block_1");
++                    load_attention(model.apertus_v_mid_attention, "v.encoder.mid.attn_1");
++                    load_resblock(model.apertus_v_mid_block_2, "v.encoder.mid.block_2");
++                    model.apertus_v_norm_out_w = get_tensor(mtmd_format(TN_APERTUS_V_NORM_OUT, "weight"));
++                    model.apertus_v_norm_out_b = get_tensor(mtmd_format(TN_APERTUS_V_NORM_OUT, "bias"));
++                    model.apertus_v_conv_out_w = get_tensor(mtmd_format(TN_APERTUS_V_CONV_OUT, "weight"));
++                    model.apertus_v_conv_out_b = get_tensor(mtmd_format(TN_APERTUS_V_CONV_OUT, "bias"));
++                    model.apertus_v_quant_conv_w = get_tensor(mtmd_format(TN_APERTUS_V_QUANT_CONV, "weight"));
++                    model.apertus_v_quant_conv_b = get_tensor(mtmd_format(TN_APERTUS_V_QUANT_CONV, "bias"));
++                    model.apertus_v_codebook = get_tensor(TN_APERTUS_V_CODEBOOK);
++                    if (model.apertus_v_codebook->ne[0] != hparams.codebook_dim ||
++                        model.apertus_v_codebook->ne[1] != hparams.codebook_size) {
++                        throw std::runtime_error(mtmd_format(
++                            "%s: Apertus vision codebook shape does not match metadata\n", __func__));
++                    }
++                } break;
++            case PROJECTOR_TYPE_APERTUS_AUDIO:
++                {
++                    // WavTokenizer numbers layers densely in the Python module but
++                    // only some of those indices have parameters (activations are
++                    // skipped). Discover IDs from the GGUF instead of assuming
++                    // 0,2,4,... / 1,3,5,... — official 1.5 is 0,3,6,9,12,15 / 1,4,7,10.
++                    std::vector<int> conv_layer_ids;
++                    std::vector<int> resblock_layer_ids;
++                    int lstm_layer_id = -1;
++                    auto full_match = [](const std::string & name, const char * fmt, int & id) {
++                        int consumed = 0;
++                        if (sscanf(name.c_str(), fmt, &id, &consumed) != 1) {
++                            return false;
++                        }
++                        return consumed == (int) name.size();
++                    };
++                    for (const auto & [name, offset] : tensor_offset) {
++                        (void) offset;
++                        int id = -1;
++                        if (full_match(name, "a.encoder.layers.%d.conv.weight%n", id)) {
++                            conv_layer_ids.push_back(id);
++                        } else if (full_match(name, "a.encoder.layers.%d.block.1.conv.weight%n", id)) {
++                            resblock_layer_ids.push_back(id);
++                        } else if (full_match(name, "a.encoder.layers.%d.lstm.weight_ih_l0%n", id)) {
++                            lstm_layer_id = id;
++                        }
++                    }
++                    std::sort(conv_layer_ids.begin(), conv_layer_ids.end());
++                    std::sort(resblock_layer_ids.begin(), resblock_layer_ids.end());
++                    if (conv_layer_ids.size() != hparams.audio_downsample_ratios.size() + 2 ||
++                        resblock_layer_ids.size() != hparams.audio_downsample_ratios.size() ||
++                        lstm_layer_id < 0) {
++                        throw std::runtime_error(mtmd_format(
++                            "%s: unexpected Apertus audio encoder layout (convs=%zu resblocks=%zu lstm=%d, expected %zu/%zu)\n",
++                            __func__,
++                            conv_layer_ids.size(),
++                            resblock_layer_ids.size(),
++                            lstm_layer_id,
++                            hparams.audio_downsample_ratios.size() + 2,
++                            hparams.audio_downsample_ratios.size()));
++                    }
++                    model.apertus_a_convs.resize(conv_layer_ids.size());
++                    for (size_t i = 0; i < model.apertus_a_convs.size(); ++i) {
++                        auto & conv = model.apertus_a_convs[i];
++                        conv.w = get_tensor(mtmd_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "weight"));
++                        conv.b = get_tensor(mtmd_format(TN_APERTUS_A_CONV, conv_layer_ids[i], "bias"));
++                    }
++                    model.apertus_a_resblocks.resize(resblock_layer_ids.size());
++                    for (size_t i = 0; i < model.apertus_a_resblocks.size(); ++i) {
++                        const int layer_id = resblock_layer_ids[i];
++                        auto & block = model.apertus_a_resblocks[i];
++                        block.conv1.w = get_tensor(mtmd_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 1, "weight"));
++                        block.conv1.b = get_tensor(mtmd_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 1, "bias"));
++                        block.conv2.w = get_tensor(mtmd_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 3, "weight"));
++                        block.conv2.b = get_tensor(mtmd_format(TN_APERTUS_A_RESBLOCK_CONV, layer_id, 3, "bias"));
++                        block.shortcut.w = get_tensor(mtmd_format(TN_APERTUS_A_SHORTCUT, layer_id, "weight"));
++                        block.shortcut.b = get_tensor(mtmd_format(TN_APERTUS_A_SHORTCUT, layer_id, "bias"));
++                    }
++                    model.apertus_a_lstm_layers.resize(hparams.audio_lstm_block_count);
++                    for (int layer_id = 0; layer_id < hparams.audio_lstm_block_count; ++layer_id) {
++                        auto & layer = model.apertus_a_lstm_layers[layer_id];
++                        layer.weight_ih = get_tensor(mtmd_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_ih", layer_id));
++                        layer.weight_hh = get_tensor(mtmd_format(TN_APERTUS_A_LSTM, lstm_layer_id, "weight_hh", layer_id));
++                        layer.bias_ih = get_tensor(mtmd_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_ih", layer_id));
++                        layer.bias_hh = get_tensor(mtmd_format(TN_APERTUS_A_LSTM, lstm_layer_id, "bias_hh", layer_id));
++                    }
++                    model.apertus_a_codebook = get_tensor(TN_APERTUS_A_CODEBOOK);
++                    if (model.apertus_a_codebook->ne[0] != hparams.codebook_dim ||
++                        model.apertus_a_codebook->ne[1] != hparams.codebook_size) {
++                        throw std::runtime_error(mtmd_format(
++                            "%s: Apertus audio codebook shape does not match metadata\n", __func__));
++                    }
++                } break;
+             default:
+                 GGML_ASSERT(false && "unknown projector type");
+         }
+@@ -3802,6 +3987,8 @@
+         case PROJECTOR_TYPE_MUSE_GLIMMER:
+         case PROJECTOR_TYPE_LFM3VL:
+             return (img->nx() / params.patch_size) / 2;
++        case PROJECTOR_TYPE_APERTUS_VISION:
++            return img->nx() / params.vision_spatial_factor;
+         case PROJECTOR_TYPE_STEP3VL:
+         case PROJECTOR_TYPE_MINICPMV4_6:
+         case PROJECTOR_TYPE_MINICPMV4_7:
+@@ -3836,6 +4023,8 @@
+         case PROJECTOR_TYPE_MUSE_GLIMMER:
+         case PROJECTOR_TYPE_LFM3VL:
+             return (img->ny() / params.patch_size) / 2;
++        case PROJECTOR_TYPE_APERTUS_VISION:
++            return img->ny() / params.vision_spatial_factor;
+         case PROJECTOR_TYPE_STEP3VL:
+         case PROJECTOR_TYPE_MINICPMV4_6:
+         case PROJECTOR_TYPE_MINICPMV4_7:
+@@ -4185,6 +4374,15 @@
+                     n_patches += h * (w + 1);
+                 }
+             } break;
++        case PROJECTOR_TYPE_APERTUS_VISION:
++            {
++                n_patches = (img->nx() / params.vision_spatial_factor) *
++                            (img->ny() / params.vision_spatial_factor);
++            } break;
++        case PROJECTOR_TYPE_APERTUS_AUDIO:
++            {
++                n_patches = (img->nx() + params.audio_hop_len - 1) / params.audio_hop_len;
++            } break;
+         default:
+             GGML_ABORT("unsupported projector type");
+     }
+@@ -4349,6 +4547,9 @@
+             return hparams.projection_dim;
+         case PROJECTOR_TYPE_PARAKEET:
+             return mm_1_w->ne[1];
++        case PROJECTOR_TYPE_APERTUS_VISION:
++        case PROJECTOR_TYPE_APERTUS_AUDIO:
++            return hparams.projection_dim;
+         default:
+             GGML_ABORT("Unknown projector type");
+     }
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-model.h b/tools/mtmd/mtmd-model.h
+--- a/tools/mtmd/mtmd-model.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-model.h	2026-11-14 06:19:27.092335250 +0100
+@@ -148,6 +148,19 @@
+     int32_t muse_glimmer_patch_temporal = 0;
+     int32_t muse_glimmer_sparse_factor  = 0;
+ 
++    // Apertus discrete tokenizers
++    int32_t codebook_size = 0;
++    int32_t codebook_dim = 0;
++    int32_t token_offset = 0;
++    int32_t vision_spatial_factor = 0;
++    int32_t vision_residual_block_count = 0;
++    std::vector<int32_t> vision_channel_multipliers;
++    std::vector<int32_t> vision_attention_levels;
++    int32_t audio_residual_block_count = 0;
++    int32_t audio_dilation_growth_rate = 0;
++    int32_t audio_lstm_block_count = 0;
++    std::vector<int32_t> audio_downsample_ratios;
++
+     // audio
+     int32_t n_mel_bins = 0; // whisper preprocessor
+     int32_t proj_stack_factor = 0; // ultravox
+@@ -882,6 +895,57 @@
+ };
+ 
+ // the weights and hparams of one modality of an mmproj file, read-only once loaded
++struct apertus_vision_resblock {
++    ggml_tensor * norm1_w = nullptr;
++    ggml_tensor * norm1_b = nullptr;
++    ggml_tensor * conv1_w = nullptr;
++    ggml_tensor * conv1_b = nullptr;
++    ggml_tensor * norm2_w = nullptr;
++    ggml_tensor * norm2_b = nullptr;
++    ggml_tensor * conv2_w = nullptr;
++    ggml_tensor * conv2_b = nullptr;
++    ggml_tensor * shortcut_w = nullptr;
++    ggml_tensor * shortcut_b = nullptr;
++};
++
++struct apertus_vision_attention {
++    ggml_tensor * norm_w = nullptr;
++    ggml_tensor * norm_b = nullptr;
++    ggml_tensor * q_w = nullptr;
++    ggml_tensor * q_b = nullptr;
++    ggml_tensor * k_w = nullptr;
++    ggml_tensor * k_b = nullptr;
++    ggml_tensor * v_w = nullptr;
++    ggml_tensor * v_b = nullptr;
++    ggml_tensor * out_w = nullptr;
++    ggml_tensor * out_b = nullptr;
++};
++
++struct apertus_vision_stage {
++    std::vector<apertus_vision_resblock> blocks;
++    std::vector<apertus_vision_attention> attentions;
++    ggml_tensor * downsample_w = nullptr;
++    ggml_tensor * downsample_b = nullptr;
++};
++
++struct apertus_audio_conv {
++    ggml_tensor * w = nullptr;
++    ggml_tensor * b = nullptr;
++};
++
++struct apertus_audio_resblock {
++    apertus_audio_conv conv1;
++    apertus_audio_conv conv2;
++    apertus_audio_conv shortcut;
++};
++
++struct apertus_audio_lstm_layer {
++    ggml_tensor * weight_ih = nullptr;
++    ggml_tensor * weight_hh = nullptr;
++    ggml_tensor * bias_ih = nullptr;
++    ggml_tensor * bias_hh = nullptr;
++};
++
+ struct mtmd_model {
+     mtmd_modality modality = MTMD_MODALITY_VISION;
+     projector_type proj_type = PROJECTOR_TYPE_MLP;
+@@ -906,6 +970,27 @@
+     ggml_tensor * norm_embd_w = nullptr;
+     ggml_tensor * norm_embd_b = nullptr;
+ 
++    // Apertus discrete vision tokenizer
++    ggml_tensor * apertus_v_conv_in_w = nullptr;
++    ggml_tensor * apertus_v_conv_in_b = nullptr;
++    ggml_tensor * apertus_v_conv_out_w = nullptr;
++    ggml_tensor * apertus_v_conv_out_b = nullptr;
++    ggml_tensor * apertus_v_norm_out_w = nullptr;
++    ggml_tensor * apertus_v_norm_out_b = nullptr;
++    ggml_tensor * apertus_v_quant_conv_w = nullptr;
++    ggml_tensor * apertus_v_quant_conv_b = nullptr;
++    ggml_tensor * apertus_v_codebook = nullptr;
++    std::vector<apertus_vision_stage> apertus_v_stages;
++    apertus_vision_resblock apertus_v_mid_block_1;
++    apertus_vision_attention apertus_v_mid_attention;
++    apertus_vision_resblock apertus_v_mid_block_2;
++
++    // Apertus discrete audio tokenizer
++    std::vector<apertus_audio_conv> apertus_a_convs;
++    std::vector<apertus_audio_resblock> apertus_a_resblocks;
++    std::vector<apertus_audio_lstm_layer> apertus_a_lstm_layers;
++    ggml_tensor * apertus_a_codebook = nullptr;
++
+     // "indexed" patch embedding norms
+     ggml_tensor * patch_norm_1_w = nullptr;
+     ggml_tensor * patch_norm_1_b = nullptr;
+@@ -1287,6 +1372,12 @@
+     // this should be equal to the embedding dimension of the text model
+     int n_mmproj_embd() const;
+ 
++    // discrete tokenizers emit token ids instead of embeddings
++    bool outputs_tokens() const {
++        return proj_type == PROJECTOR_TYPE_APERTUS_VISION ||
++               proj_type == PROJECTOR_TYPE_APERTUS_AUDIO;
++    }
++
+     int n_output_tokens(const mtmd_image_f32 * img) const;
+ 
+     // for M-RoPE, this will be the number of token positions in X and Y directions
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-subcontext.cpp b/tools/mtmd/mtmd-subcontext.cpp
+--- a/tools/mtmd/mtmd-subcontext.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-subcontext.cpp	2026-11-14 06:19:27.103371134 +0100
+@@ -373,11 +373,12 @@
+     return encode_batch(n_threads, &imgs, out_vec);
+ }
+ 
+-bool mtmd_subcontext::encode_batch(int n_threads, const mtmd_image_f32_batch * imgs_c_ptr, std::vector<float> & out_batch_embd) {
++bool mtmd_subcontext::encode_batch(int n_threads, const mtmd_image_f32_batch * imgs_c_ptr, std::vector<float> & out_batch_embd, std::vector<int32_t> * out_tokens) {
+     mtmd_subctx_encode_params params;
+     params.imgs = imgs_c_ptr;
+     params.n_threads = n_threads;
+     params.out_embd = &out_batch_embd;
++    params.out_tokens = out_tokens;
+ 
+     if (model.proj_type == PROJECTOR_TYPE_NEMOTRON_TRANSCRIBE) {
+         return mtmd_graph_nemotron_transcribe::encode_windows(this, model, &params);
+@@ -522,6 +523,15 @@
+     const mtmd_image_f32_batch & imgs = *params->imgs;
+     int n_batch_cur = imgs.entries.size();
+ 
++    if (model.proj_type == PROJECTOR_TYPE_APERTUS_AUDIO && !imgs.entries.empty()) {
++        const int64_t n_audio_tokens = model.n_output_tokens(&imgs.entries.front());
++        const int64_t required_nodes = std::max<int64_t>(8192, (int64_t) 2048 + 64 * n_audio_tokens);
++        if (required_nodes > max_nodes) {
++            LOG_ERR("%s: Apertus audio graph needs %lld nodes, scheduler has %d\n", __func__, (long long) required_nodes, max_nodes);
++            return false;
++        }
++    }
++
+     // [QWEN_VIDEO] for video models, the batch dimension is used as temporal dimension for merged frames
+     if (!support_batch && n_batch_cur > model.n_temporal_merge()) {
+         LOG_ERR("%s: batch size %d exceeds maximum supported batch/temporal-merge size %d\n", __func__, n_batch_cur, model.n_temporal_merge());
+@@ -555,7 +565,8 @@
+ 
+     // the last node is the embedding tensor, code2wav has no out_embd
+     // read it before scheduling: backends may reorder the nodes of graphs with several outputs (Metal)
+-    ggml_tensor * embeddings = params->out_embd ? ggml_graph_node(gf, -1) : nullptr;
++    ggml_tensor * output = ggml_graph_node(gf, -1);
++    ggml_tensor * embeddings = (!model.outputs_tokens() && params->out_embd) ? output : nullptr;
+ 
+     if (!ggml_backend_sched_alloc_graph(backends.sched.get(), gf)) {
+         LOG_ERR("%s: failed to allocate compute graph\n", __func__);
+@@ -762,6 +773,11 @@
+ 
+     // set input per projector
+     switch (model.proj_type) {
++        case PROJECTOR_TYPE_APERTUS_VISION:
++        case PROJECTOR_TYPE_APERTUS_AUDIO:
++            {
++                // These encoders only require inp_raw.
++            } break;
+         case PROJECTOR_TYPE_VOXTRAL_RT:
+             {
+                 mtmd_subctx_enc_state * st = params->enc_state;
+@@ -2279,6 +2295,35 @@
+         return false;
+     }
+ 
++    if (model.outputs_tokens()) {
++        if (output->type != GGML_TYPE_I32) {
++            LOG_ERR("%s: expected token ID output, got %s\n", __func__, ggml_type_name(output->type));
++            return false;
++        }
++
++        const int expected_n_tokens_out = model.n_output_tokens(&imgs.entries[0]) * n_batch_cur;
++        if (ggml_nelements(output) != expected_n_tokens_out) {
++            LOG_ERR("%s: expected %d output tokens, got %zu\n", __func__, expected_n_tokens_out,
++                    (size_t) ggml_nelements(output));
++            return false;
++        }
++        if (params->out_tokens == nullptr) {
++            LOG_ERR("%s: token output buffer was not provided\n", __func__);
++            return false;
++        }
++
++        if (params->out_embd != nullptr) {
++            params->out_embd->clear();
++        }
++        params->out_tokens->resize(expected_n_tokens_out);
++        ggml_backend_tensor_get(output, params->out_tokens->data(), 0, ggml_nbytes(output));
++        for (int32_t & token : *params->out_tokens) {
++            token += hparams.token_offset;
++        }
++        LOG_DBG("%s: output token shape [%d]\n", __func__, expected_n_tokens_out);
++        return true;
++    }
++
+     if (embeddings != nullptr) {
+         // sanity check (assuming that all images in batch have the same number of tokens, so we only check the first one)
+         const int n_tokens_out = embeddings->ne[1];
+diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd-subcontext.h b/tools/mtmd/mtmd-subcontext.h
+--- a/tools/mtmd/mtmd-subcontext.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd-subcontext.h	2026-11-14 06:19:27.101404927 +0100
+@@ -114,6 +114,7 @@
+     int n_threads = 1;
+     const mtmd_image_f32_batch * imgs = nullptr;
+     std::vector<float> * out_embd = nullptr;
++    std::vector<int32_t> * out_tokens = nullptr; // discrete tokenizers; llama_token is int32_t
+ 
+     // for audio gen, imgs has exactly one entry: hidden state from backbone (GEN_CODE) or unused (GEN_WAV)
+     mtmd_subctx_gen_process gen_process = MTMD_SUBCTX_GEN_PROCESS_GEN_UNKNOWN;
+@@ -173,7 +174,7 @@
+ 
+     // TODO: remove encode_image() and always use batched version
+     bool encode_image(int n_threads, const mtmd_image_f32 * img, std::vector<float> & out_vec);
+-    bool encode_batch(int n_threads, const mtmd_image_f32_batch * imgs, std::vector<float> & out_batch_embd);
++    bool encode_batch(int n_threads, const mtmd_image_f32_batch * imgs, std::vector<float> & out_batch_embd, std::vector<int32_t> * out_tokens = nullptr);
+ 
+     // n_frames_max is the maximum number of encoder frames per encode() call, free the result with delete
+     mtmd_subctx_enc_state * enc_state_init(int32_t n_frames_max);
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtmd/mtmd.cpp
---- a/tools/mtmd/mtmd.cpp	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd.cpp	2026-10-29 04:02:23.799778981 +0100
-@@ -30,7 +30,7 @@
- #include <vector>
+--- a/tools/mtmd/mtmd.cpp	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd.cpp	2026-11-14 06:19:27.107847236 +0100
+@@ -48,7 +48,7 @@
+ }
  
  // remember to bump this if the serialization format changes
 -#define MTMD_SERIALIZATION_VERSION 4
@@ -2156,7 +2103,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
  
  // oldest compat version that can be loaded
  #define MTMD_SERIALIZATION_VERSION_MIN 2
-@@ -105,6 +105,25 @@
+@@ -123,6 +123,25 @@
      return str;
  }
  
@@ -2179,10 +2126,10 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
 +    return tokens;
 +}
 +
- // only mtmd.cpp needs these, so they're implemented here rather than in clip-impl.h
- void clip_image_f32::serialize(mtmd_serialization & ser) const {
+ // only mtmd.cpp needs these, so they're implemented here rather than in mtmd-impl.h
+ void mtmd_image_f32::serialize(mtmd_serialization & ser) const {
      // remember to bump MTMD_SERIALIZATION_VERSION if this is changed
-@@ -243,7 +262,16 @@
+@@ -276,7 +295,16 @@
      mtmd_pos_type pos = MTMD_POS_TYPE_NORMAL;
      uint32_t image_idx = 0; // 0-based position of this image among image chunks in the prompt(used by pos == MTMD_POS_TYPE_HUNYUANVL)
      uint32_t n_temporal_merge = 1; // for qwen-vl style temporal merge
@@ -2199,7 +2146,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
          if (pos == MTMD_POS_TYPE_HUNYUANVL) {
              // [BOI] [row0 tokens + newline] ... [row(ny-1) tokens + newline] [EOI]
              return (nx + 1) * ny + 2;
-@@ -301,6 +329,9 @@
+@@ -334,6 +362,9 @@
              pos,
              image_idx,
              n_temporal_merge,
@@ -2209,7 +2156,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
              batch_f32.clone(),
              id
          };
-@@ -314,6 +345,9 @@
+@@ -347,6 +378,9 @@
          ser.write(image_idx);
          ser.write(n_temporal_merge);
          ser.write(id);
@@ -2219,7 +2166,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
          batch_f32.serialize(ser);
      }
      void deserialize(mtmd_serialization & ser) {
-@@ -327,6 +361,12 @@
+@@ -360,6 +394,12 @@
          image_idx = ser.read<uint32_t>();
          n_temporal_merge = ser.read<uint32_t>();
          id = ser.read<std::string>();
@@ -2232,7 +2179,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
          batch_f32.deserialize(ser);
      }
  };
-@@ -495,6 +535,7 @@
+@@ -545,6 +585,7 @@
      mtmd_context * ctx;
      std::vector<const mtmd_input_chunk *> entries;
      std::vector<float> output_embd; // aggregated output embedding for the whole batch
@@ -2240,81 +2187,81 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
      mtmd_batch(mtmd_context * ctx): ctx(ctx) {}
      int32_t n_tokens() const {
          int32_t n = 0;
-@@ -555,6 +596,7 @@
-     struct clip_ctx * ctx_v; // vision
-     struct clip_ctx * ctx_a; // audio
+@@ -617,6 +658,7 @@
+     std::unique_ptr<mtmd_subcontext> ctx_v; // vision
+     std::unique_ptr<mtmd_subcontext> ctx_a; // audio
      std::vector<float> out_embd; // image embedding vector
 +    std::vector<llama_token> out_tokens; // decoder token IDs from a discrete media encoder
  
      // generation context
-     struct clip_ctx * ctx_gen_a; // audio
-@@ -666,8 +708,11 @@
-             throw std::runtime_error(string_format("Failed to load CLIP model from %s\n", mmproj_fname));
+     std::unique_ptr<mtmd_subcontext> ctx_gen_a; // audio
+@@ -762,8 +804,11 @@
+             }
          }
  
 -        // if both vision and audio mmproj are present, we need to validate their n_embd
 -        if (ctx_v && ctx_a) {
-+        const bool vision_tokens = ctx_v && clip_outputs_tokens(ctx_v);
-+        const bool audio_tokens = ctx_a && clip_outputs_tokens(ctx_a);
++        const bool vision_tokens = ctx_v && ctx_v->model.outputs_tokens();
++        const bool audio_tokens = ctx_a && ctx_a->model.outputs_tokens();
 +
 +        // Compare only projectors that produce embeddings.
 +        if (ctx_v && ctx_a && !vision_tokens && !audio_tokens) {
-             int n_embd_v = clip_n_mmproj_embd(ctx_v);
-             int n_embd_a = clip_n_mmproj_embd(ctx_a);
+             int n_embd_v = ctx_v->model.n_mmproj_embd();
+             int n_embd_a = ctx_a->model.n_mmproj_embd();
              if (n_embd_v != n_embd_a) {
-@@ -677,15 +722,18 @@
+@@ -773,15 +818,18 @@
              }
          }
  
 -        // since we already validate n_embd of vision and audio mmproj,
 -        // we can safely assume that they are the same
 -        // a gen-only mmproj is validated below
--        int n_embd_clip = ctx_v || ctx_a ? clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a) : n_embd_text;
--        if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
--            throw std::runtime_error(string_format(
+-        int n_embd_mmproj = ctx_v || ctx_a ? (ctx_v ? ctx_v : ctx_a)->model.n_mmproj_embd() : n_embd_text;
+-        if (n_embd_text > 0 && n_embd_text != n_embd_mmproj) {
+-            throw std::runtime_error(mtmd_format(
 -                "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
 -                "hint: you may be using wrong mmproj\n",
--                n_embd_text, n_embd_clip));
+-                n_embd_text, n_embd_mmproj));
 +        // discrete tokenizers do not share an embedding width with the text model
 +        if (!vision_tokens && !audio_tokens) {
 +            // since we already validate n_embd of vision and audio mmproj,
 +            // we can safely assume that they are the same
 +            // a gen-only mmproj is validated below
-+            int n_embd_clip = ctx_v || ctx_a ? clip_n_mmproj_embd(ctx_v ? ctx_v : ctx_a) : n_embd_text;
-+            if (n_embd_text > 0 && n_embd_text != n_embd_clip) {
-+                throw std::runtime_error(string_format(
++            int n_embd_mmproj = ctx_v || ctx_a ? (ctx_v ? ctx_v : ctx_a)->model.n_mmproj_embd() : n_embd_text;
++            if (n_embd_text > 0 && n_embd_text != n_embd_mmproj) {
++                throw std::runtime_error(mtmd_format(
 +                    "mismatch between text model (n_embd = %d) and mmproj (n_embd = %d)\n"
 +                    "hint: you may be using wrong mmproj\n",
-+                    n_embd_text, n_embd_clip));
++                    n_embd_text, n_embd_mmproj));
 +            }
          }
          if (ctx_gen_a) {
-             int n_embd_gen = clip_n_mmproj_embd(ctx_gen_a);
-@@ -796,6 +844,10 @@
+             int n_embd_gen = ctx_gen_a->model.n_mmproj_embd();
+@@ -899,6 +947,10 @@
                      img_end = "]<]end of image[>[";
-                     image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(ctx_v);
+                     image_preproc = std::make_unique<mtmd_image_preprocessor_dyn_size>(models.v.get());
                  } break;
 +            case PROJECTOR_TYPE_APERTUS_VISION:
 +                {
-+                    image_preproc = std::make_unique<mtmd_image_preprocessor_apertus>(ctx_v);
++                    image_preproc = std::make_unique<mtmd_image_preprocessor_apertus>(models.v.get());
 +                } break;
              case PROJECTOR_TYPE_SENSENOVA_U1:
                  {
                      img_beg = "<img>";
-@@ -1168,6 +1220,12 @@
+@@ -1288,6 +1340,12 @@
                  {
-                     audio_preproc = std::make_unique<mtmd_audio_preprocessor_pockettts>(ctx_a);
+                     audio_preproc = std::make_unique<mtmd_audio_preprocessor_chatterbox_ref>(models.a.get(), cbx_is_mtl(*models.a));
                  } break;
 +            case PROJECTOR_TYPE_APERTUS_AUDIO:
 +                {
 +                    aud_beg = "<|audio_start|>";
 +                    aud_end = "<|audio_end|>";
-+                    audio_preproc = std::make_unique<mtmd_audio_preprocessor_apertus>(ctx_a);
++                    audio_preproc = std::make_unique<mtmd_audio_preprocessor_apertus>(models.a.get());
 +                } break;
              default:
-                 throw std::runtime_error(string_format("%s: unexpected audio projector type %d\n", __func__, proj));
+                 throw std::runtime_error(mtmd_format("%s: unexpected audio projector type %d\n", __func__, proj));
          }
-@@ -1736,6 +1794,26 @@
+@@ -1859,6 +1917,26 @@
                      image_tokens->image_idx = n_images_added;
                      GGML_ASSERT(n_tokens == (size_t)image_tokens->n_tokens());
                  }
@@ -2323,7 +2270,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
 +                        throw std::runtime_error("Apertus vision does not support batched media encoding");
 +                    }
 +                    const auto & image = preproc_out.entries[0];
-+                    const int spatial_factor = clip_get_hparams(ctx->ctx_v)->vision_spatial_factor;
++                    const int spatial_factor = ctx->ctx_v->model.hparams.vision_spatial_factor;
 +                    image_tokens->nx = image.nx() / spatial_factor;
 +                    image_tokens->ny = image.ny() / spatial_factor;
 +
@@ -2339,40 +2286,41 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
 +                    append_tokens(image_tokens->token_suffix, "<|img_end|>", true);
 +                }
  
-                 clip_image_f32_batch batch_f32;
+                 mtmd_image_f32_batch batch_f32;
                  batch_f32.is_audio = false;
-@@ -2102,7 +2180,8 @@
+@@ -2274,7 +2352,8 @@
      }
  }
  
 -static int32_t mtmd_encode_impl(mtmd_context * ctx, const mtmd_image_tokens * image_tokens, std::vector<float> & out_embd) {
 +static int32_t mtmd_encode_impl(mtmd_context * ctx, const mtmd_image_tokens * image_tokens,
 +                                std::vector<float> & out_embd, std::vector<llama_token> & out_tokens) {
-     clip_ctx * ctx_clip = ctx->ctx_v;
-     if (!ctx_clip) {
+     mtmd_subcontext * sctx = ctx->ctx_v.get();
+     if (!sctx) {
          LOG_ERR("%s: this API does not support non-vision input, please use mtmd_encode_chunk instead\n", __func__);
-@@ -2111,7 +2190,11 @@
+@@ -2283,7 +2362,12 @@
  
      int n_embd_out = ctx->n_embd_out();
      auto n_tokens_out = image_tokens->n_tokens();
 -    out_embd.resize((size_t)n_embd_out * n_tokens_out);
++    const bool tokens = sctx->model.outputs_tokens();
 +    out_embd.clear();
 +    out_tokens.clear();
-+    if (!clip_outputs_tokens(ctx_clip)) {
++    if (!tokens) {
 +        out_embd.resize((size_t)n_embd_out * n_tokens_out);
 +    }
  
      if (image_tokens->is_placeholder()) {
          LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
-@@ -2140,12 +2223,38 @@
-         ctx_clip,
-         ctx->n_threads,
+@@ -2310,14 +2394,39 @@
+ 
+     bool ok = sctx->encode_batch(ctx->n_threads,
          &image_tokens->batch_f32,
 -        out_embd);
 +        out_embd,
-+        &out_tokens);
++        tokens ? &out_tokens : nullptr);
 +
-+    if (ok && clip_outputs_tokens(ctx_clip)) {
++    if (ok && tokens) {
 +        const std::vector<llama_token> codes = std::move(out_tokens);
 +        out_tokens = image_tokens->token_prefix;
 +        out_tokens.reserve(image_tokens->n_tokens());
@@ -2399,60 +2347,87 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
      return ok ? 0 : 1;
  }
  
+ static int32_t cbx_ref_encode(mtmd_context * ctx, const mtmd_audio_tokens * audio_tokens, std::vector<float> & out_embd);
+ 
+-static bool mtmd_audio_batch_encode(mtmd_context * ctx, const mtmd_image_f32_batch & batch_f32, mtmd_audio_preproc_out * source, uint32_t idx, std::vector<float> & out_embd) {
++static bool mtmd_audio_batch_encode(mtmd_context * ctx, const mtmd_image_f32_batch & batch_f32, mtmd_audio_preproc_out * source, uint32_t idx, std::vector<float> & out_embd, std::vector<llama_token> * out_tokens = nullptr) {
+     mtmd_image_f32_batch batch = batch_f32.clone();
+     if (source) {
+         if (!ctx->audio_preproc->compute(*source)) {
+@@ -2327,10 +2436,10 @@
+         GGML_ASSERT(idx < source->entries.size());
+         batch.entries[0] = source->entries[idx];
+     }
+-    return ctx->ctx_a->encode_batch(ctx->n_threads, &batch, out_embd);
++    return ctx->ctx_a->encode_batch(ctx->n_threads, &batch, out_embd, out_tokens);
+ }
+ 
 -static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk, std::vector<float> & out_embd) {
-+static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk,
-+                                      std::vector<float> & out_embd, std::vector<llama_token> & out_tokens) {
++static int32_t mtmd_encode_chunk_impl(mtmd_context * ctx, const mtmd_input_chunk * chunk, std::vector<float> & out_embd, std::vector<llama_token> & out_tokens) {
+     ctx->gen_ref = {}; // see mtmd_gen_state_set_ref()
      if (chunk->type == MTMD_INPUT_CHUNK_TYPE_TEXT) {
          LOG_WRN("mtmd_encode_chunk has no effect for text chunks\n");
-         return 0;
-@@ -2162,7 +2271,7 @@
+@@ -2348,7 +2457,7 @@
              LOG_ERR("%s: image tokens batch is placeholder\n", __func__);
              return 1;
          }
 -        return mtmd_encode_impl(ctx, chunk->tokens_image.get(), out_embd);
 +        return mtmd_encode_impl(ctx, chunk->tokens_image.get(), out_embd, out_tokens);
      } else if (chunk->type == MTMD_INPUT_CHUNK_TYPE_AUDIO) {
-         if (!ctx->ctx_a) {
-             LOG_ERR("%s: model does not support audio input\n", __func__);
-@@ -2191,12 +2300,17 @@
-                             track->embd.begin() + off + (size_t) chunk->tokens_audio->n_tokens * n_mmproj_embd);
-             return 0;
+         if (chunk->tokens_audio == nullptr) {
+             LOG_ERR("%s: audio tokens are null\n", __func__);
+@@ -2359,12 +2468,17 @@
+             return 1;
          }
--        out_embd.resize((size_t)chunk->tokens_audio->n_tokens * n_mmproj_embd);
-+        out_embd.clear();
+         const auto & track = chunk->tokens_audio->track;
 +        out_tokens.clear();
-+        if (!clip_outputs_tokens(ctx->ctx_a)) {
-+            out_embd.resize((size_t)chunk->tokens_audio->n_tokens * n_mmproj_embd);
+         // a filled track (e.g. a voice) needs no audio encoder
+         if (!ctx->ctx_a && (!track || track->embd.empty())) {
+             LOG_ERR("%s: model does not support audio input\n", __func__);
+             return 1;
+         }
+         if (track) {
++            if (ctx->ctx_a && ctx->ctx_a->model.outputs_tokens()) {
++                LOG_ERR("%s: discrete audio tokens cannot be sliced from an embedding track\n", __func__);
++                return 1;
++            }
+             if (track->embd.empty()) {
+                 track->embd.resize((size_t) track->n_tokens * ctx->n_embd_out());
+                 if (!mtmd_audio_batch_encode(ctx, track->batch_f32, track->source.get(), 0, track->embd)) {
+@@ -2384,8 +2498,12 @@
+         if (ctx->ctx_a->model.proj_type == PROJECTOR_TYPE_CHATTERBOX_SPKENC) {
+             return cbx_ref_encode(ctx, chunk->tokens_audio.get(), out_embd);
+         }
+-        out_embd.resize((size_t)chunk->tokens_audio->n_tokens * ctx->n_embd_out());
+-        bool ok = mtmd_audio_batch_encode(ctx, chunk->tokens_audio->batch_f32, chunk->tokens_audio->source.get(), chunk->tokens_audio->source_idx, out_embd);
++        out_embd.clear();
++        if (!ctx->ctx_a->model.outputs_tokens()) {
++            out_embd.resize((size_t)chunk->tokens_audio->n_tokens * ctx->n_embd_out());
 +        }
-         bool ok = clip_image_batch_encode(
-             ctx->ctx_a,
-             ctx->n_threads,
-             &chunk->tokens_audio->batch_f32,
--            out_embd);
-+            out_embd,
-+            &out_tokens);
++        bool ok = mtmd_audio_batch_encode(ctx, chunk->tokens_audio->batch_f32, chunk->tokens_audio->source.get(), chunk->tokens_audio->source_idx, out_embd,
++                                          ctx->ctx_a->model.outputs_tokens() ? &out_tokens : nullptr);
          return ok ? 0 : 1;
      }
  
-@@ -2207,7 +2321,7 @@
- int32_t mtmd_encode_chunk(mtmd_context * ctx, const mtmd_input_chunk * chunk) {
+@@ -2397,7 +2515,7 @@
      // this is the non-batching version
+     std::lock_guard<std::mutex> lock(ctx->compute_mutex);
      try {
 -        return mtmd_encode_chunk_impl(ctx, chunk, ctx->out_embd);
 +        return mtmd_encode_chunk_impl(ctx, chunk, ctx->out_embd, ctx->out_tokens);
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -2216,7 +2330,7 @@
- 
+@@ -2407,7 +2525,7 @@
  int32_t mtmd_encode(mtmd_context * ctx, const mtmd_image_tokens * image_tokens) {
+     std::lock_guard<std::mutex> lock(ctx->compute_mutex);
      try {
 -        return mtmd_encode_impl(ctx, image_tokens, ctx->out_embd);
 +        return mtmd_encode_impl(ctx, image_tokens, ctx->out_embd, ctx->out_tokens);
      } catch (const std::exception & e) {
          LOG_ERR("%s: error: %s\n", __func__, e.what());
          return 1;
-@@ -2224,7 +2338,12 @@
+@@ -2415,7 +2533,12 @@
  }
  
  float * mtmd_get_output_embd(mtmd_context * ctx) {
@@ -2466,7 +2441,7 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
  }
  
  //
-@@ -2646,7 +2765,8 @@
+@@ -3280,7 +3403,8 @@
      int32_t res = mtmd_encode_chunk_impl(
          batch->ctx,
          batch_chunk.get(),
@@ -2477,9 +2452,9 @@ diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.cpp b/tools/mtm
  }
  
 diff -ruN '--exclude=*.rej' '--exclude=*.orig' a/tools/mtmd/mtmd.h b/tools/mtmd/mtmd.h
---- a/tools/mtmd/mtmd.h	2026-10-28 12:30:38.000000000 +0100
-+++ b/tools/mtmd/mtmd.h	2026-10-29 03:55:23.354896795 +0100
-@@ -359,6 +359,9 @@
+--- a/tools/mtmd/mtmd.h	2026-11-13 10:09:55.000000000 +0100
++++ b/tools/mtmd/mtmd.h	2026-11-14 06:10:21.251905516 +0100
+@@ -364,6 +364,9 @@
  // llama_model_n_embd_inp(model) * mtmd_input_chunk_get_n_tokens(chunk) * sizeof(float)
  MTMD_API float * mtmd_get_output_embd(mtmd_context * ctx);
  

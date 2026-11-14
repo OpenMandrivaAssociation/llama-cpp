@@ -4,8 +4,8 @@
 
 %global pypi_name gguf
 # vX.Y.Z GitHub releases only ship nightly-tag.txt; the prebuilt web UI
-# is attached to the matching nightly (b11960 for 0.8.0).
-%global nightly_tag b11960
+# is attached to the matching nightly (b12359 for 1.0.0).
+%global nightly_tag b12359
 
 # Out-of-tree cmake/ninja can leave empty debugsourcefiles.list; rpm then
 # fails on x86_64/aarch64. Keep -debuginfo; skip empty -debugsource.
@@ -29,7 +29,7 @@
 
 Summary:		LLM inference in C/C++ (llama.cpp)
 Name:			llama-cpp
-Version:		0.8.0
+Version:		1.0.0
 Release:		1
 License:		MIT AND Apache-2.0 AND LicenseRef-Fedora-Public-Domain
 Group:			Sciences/Other
@@ -45,7 +45,7 @@ Source1:		https://github.com/ggml-org/llama.cpp/releases/download/%{nightly_tag}
 
 BuildRequires:	pkgconfig(libcurl)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	cmake(ggml) >= 0.28.0
+BuildRequires:	cmake(ggml) >= 1.0.0
 BuildRequires:	git-core
 %if %{with examples}
 BuildRequires:	pkgconfig(python3)
@@ -60,7 +60,7 @@ BuildRequires:	python%{pyver}dist(requests)
 %endif
 
 Requires:	curl
-Requires:	%{mklibname ggml}%{?_isa} >= 0.28.0
+Requires:	%{mklibname ggml}%{?_isa} >= 1.0.0
 Recommends:	numactl
 # Runtime backends are dlopen'd from ggml; recommend the useful ones.
 Recommends:	ggml-backend-blas%{?_isa}
@@ -79,8 +79,8 @@ BuildOption:	-DCMAKE_C_COMPILER=clang
 BuildOption:	-DCMAKE_CXX_COMPILER=clang++
 BuildOption:	-DBUILD_SHARED_LIBS:BOOL=ON
 BuildOption:	-DLLAMA_USE_SYSTEM_GGML:BOOL=ON
-# v0.8.0 is a release tag. Upstream defaults this ON, which stamps
-# the CMake package version as 0.8.0-dev.
+# v1.0.0 is a release tag. Upstream defaults this ON, which stamps
+# the CMake package version as 1.0.0-dev.
 BuildOption:	-DLLAMA_BUILD_IS_DEV:BOOL=OFF
 BuildOption:	-DLLAMA_OPENSSL:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_COMMON:BOOL=ON
@@ -90,7 +90,7 @@ BuildOption:	-DLLAMA_BUILD_APP:BOOL=ON
 BuildOption:	-DLLAMA_BUILD_EXAMPLES=%{build_examples}
 BuildOption:	-DLLAMA_BUILD_TESTS=%{build_test}
 # Embed Source1 (extracted to tools/ui/dist in %prep). scripts/ui-assets.cmake
-# uses that tree first and returns, ignoring the flags below. 0.8's
+# uses that tree first and returns, ignoring the flags below. 1.0's
 # LLAMA_BUILD_UI means an npm build (default OFF). LLAMA_USE_PREBUILT_UI
 # means a Hugging Face download (default ON). Both stay OFF so a missing
 # dist cannot fall through to npm or the network. ABF builders are offline.
@@ -100,21 +100,21 @@ BuildOption:	-DLLAMA_TOOLS_INSTALL:BOOL=ON
 
 # 0002: llama-export-lora used ggml_backend_cpu_init() which is not in
 #       libggml when backends are dlopen'd. Load CPU via the registry.
-# 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). 0.8.0
-#       already has Apertus text, not the discrete projectors. mtmd
-#       serialization is already v4 (audio-track slices), so
+# 0003: Apertus 1.5 (text + discrete vision/audio tokenizers). 1.0.0
+#       has Apertus text, not the discrete projectors. clip.cpp was
+#       folded into mtmd. Serialization is v4 (audio-track slices), so
 #       token_prefix/row_separator/suffix are v5 and are skipped when
 #       an older cache is loaded. Empty tool-call args become {} in
 #       the 1.5 jinja.
 # 0004: recover leftover <|tools_suffix|> / function-as-key JSON so
 #       the OpenAI API gets structured tool_calls instead of HTTP 500.
-#       Still applies on the 0.8.0 common_chat parser.
 # 0005: Ollama GGUF translation layer (src/ollama-compat/). Load-time
 #       hooks only; OLLAMA_LLAMA_CPP_COMPAT=0 disables them. No-op on
-#       standard llama.cpp GGUFs. ollama execs this llama-server.
-# 0006 dropped: 0.8 calls ggml_backend_sched_set_copy_callback and
+#       standard llama.cpp GGUFs. The mmproj hooks are in
+#       mtmd-model.cpp. ollama execs this llama-server.
+# 0006 dropped: 1.0 calls ggml_backend_sched_set_copy_callback and
 #       ggml_backend_sched_set_realloc_callback unconditionally, and
-#       libggml-base 0.28 exports both. The 0.26 detection shim is
+#       libggml-base 1.0 exports both. The 0.26 detection shim is
 #       obsolete.
 # 0.4.1 added unity-build / PCH lines that shift CMake context in 0005.
 %global _default_patch_fuzz 3
@@ -144,7 +144,7 @@ ships). Set OLLAMA_LLAMA_CPP_COMPAT=0 to disable.
 Summary:	Development files for %{name}
 Group:		Development/C++
 Requires:	%{name}%{?_isa} = %{EVRD}
-Requires:	cmake(ggml) >= 0.28.0
+Requires:	cmake(ggml) >= 1.0.0
 
 %description devel
 Headers, pkg-config and CMake package config for llama.cpp.
